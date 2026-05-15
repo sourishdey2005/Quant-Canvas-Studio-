@@ -2157,6 +2157,15 @@ def main():
 
         if st.session_state.simulation_result is not None:
             result = st.session_state.simulation_result
+            try:
+                num_qubits = int(getattr(result.get("circuit", None), "num_qubits", st.session_state.num_qubits))
+            except Exception:
+                num_qubits = int(st.session_state.num_qubits)
+
+            if result.get("statevector") is None:
+                st.error("Simulation result is missing a statevector; re-run simulation.")
+                st.json({"result_keys": sorted(list(result.keys()))})
+                st.stop()
 
             tab_bloch, tab_probs, tab_amps, tab_density, tab_timeline, tab_code = st.tabs(
                 ["Bloch", "Probabilities", "Amplitudes", "Density", "Timeline", "Code"]
