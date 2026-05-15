@@ -1,0 +1,21 @@
+# Qanvas Studio (formerly Qircuit Studio) - Quantum Circuit Visualizer
+# Python 3.10+ compatible dependencies for the Streamlit MVP in `app.py`.
+
+# UI
+streamlit>=1.34.0
+plotly>=5.18.0
+
+# Quantum simulation
+qiskit>=1.0.0
+qiskit-aer>=0.13.0
+
+# Numerics
+numpy>=1.24.0
+scipy>=1.11.0
+
+# Circuit rendering (Qiskit drawer)
+matplotlib>=3.8.0
+pylatexenc>=2.10
+
+# Optional: run circuits on IBM Quantum (not used by the MVP)
+# qiskit-ibm-runtime>=0.18.0
