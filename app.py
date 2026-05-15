@@ -2033,15 +2033,25 @@ def main():
                         )
                         new_controls = [int(c1), int(c2)]
 
-                    if gate.name in {"mcx", "mcz"}:
-                        opts = [qidx for qidx in range(num_qubits) if qidx != int(new_qubit)]
-                        picked = st.multiselect(
-                            "Controls (2+)",
-                            options=opts,
-                            default=(gate.controls if gate.controls else opts[:2]),
-                            key=f"mctrl_{i}",
-                        )
-                        new_controls = [int(x) for x in picked]
+                        if gate.name in {"mcx", "mcz"}:
+                            opts = [qidx for qidx in range(num_qubits) if qidx != int(new_qubit)]
+                            # Streamlit requires every default item to be present in `options`.
+                            # Older saved circuits (or edits that change `new_qubit`) can leave
+                            # `gate.controls` containing invalid/out-of-range/self indices.
+                            if gate.controls:
+                                default_controls = [int(c) for c in gate.controls if int(c) in opts]
+                            else:
+                                default_controls = []
+                            if not default_controls:
+                                default_controls = opts[:2] if len(opts) >= 2 else opts
+
+                            picked = st.multiselect(
+                                "Controls (2+)",
+                                options=opts,
+                                default=default_controls,
+                                key=f"mctrl_{i}",
+                            )
+                            new_controls = [int(x) for x in picked]
 
                     if gate.name in {"rx", "ry", "rz", "crx", "cry", "crz", "rxx", "ryy", "rzz", "xx", "yy", "zz"}:
                         new_param = st.number_input(
