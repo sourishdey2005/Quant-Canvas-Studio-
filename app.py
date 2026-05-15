@@ -661,7 +661,11 @@ class QuantumEngine:
     
     @staticmethod
     def simulate_statevector(qc: QuantumCircuit) -> np.ndarray:
-        """Run statevector simulation"""
+        """Run statevector simulation (deployment-safe).
+
+        Prefer Qiskit quantum_info Statevector evolution (no Aer dependency, no 'unknown instruction' issues).
+        Fall back to Aer if needed.
+        """
         qc_sim = qc.copy()
         
         # Check for measurements (compatible with different Qiskit versions)
@@ -673,10 +677,28 @@ class QuantumEngine:
         
         if has_measurements:
             qc_sim.remove_final_measurements(inplace=True)
-        
-        simulator = AerSimulator(method='statevector')
-        qc_sim.save_statevector()
-        result = simulator.run(qc_sim).result()
+
+        # Best-effort normalize to common basis gates so Statevector evolution works broadly
+        try:
+            qc_sim = transpile(qc_sim, basis_gates=["u", "cx"], optimization_level=0)
+        except Exception:
+            pass
+
+        # Primary path: no Aer required
+        try:
+            sv = Statevector.from_instruction(qc_sim)
+            return np.asarray(sv.data, dtype=complex)
+        except Exception:
+            pass
+
+        # Fallback: Aer statevector
+        simulator = AerSimulator(method="statevector")
+        try:
+            qc_aer = transpile(qc_sim, simulator, optimization_level=0)
+        except Exception:
+            qc_aer = qc_sim
+        qc_aer.save_statevector()
+        result = simulator.run(qc_aer).result()
         return result.get_statevector()
     
     @staticmethod
@@ -717,7 +739,13 @@ class QuantumEngine:
         
         if not has_measurements:
             qc_sim.measure_all()
-        
+
+        # Transpile to Aer-supported instructions to avoid "unknown instruction" on cloud deployments
+        try:
+            qc_sim = transpile(qc_sim, simulator, optimization_level=0)
+        except Exception:
+            pass
+
         result = simulator.run(qc_sim, shots=shots).result()
         return {'counts': result.get_counts()}
     
@@ -1613,94 +1641,100 @@ def main():
         with col1:
             if st.button("Run Simulation", use_container_width=True, type="primary"):
                 with st.spinner("Running quantum simulation..."):
-                    start_time = time.time()
-                    
-                    # Build circuit
-                    qc_custom_backup = dict(st.session_state.custom_gates)
-                    if use_pipeline and st.session_state.pipeline:
-                        composed = _compose_blocks(st.session_state.pipeline)
-                        num_qubits = int(composed["num_qubits"])
-                        st.session_state.custom_gates = dict(composed["custom_gates"])
-                        qc = QuantumEngine.build_circuit(num_qubits, composed["gates"])
-                    else:
-                        qc = QuantumEngine.build_circuit(num_qubits, st.session_state.gates)
-                    
-                    # Simulate
-                    statevector = QuantumEngine.simulate_statevector(qc)
-                    probabilities = QuantumEngine.calculate_probabilities(statevector, num_qubits)
-                    bloch_data = QuantumEngine.generate_bloch_data(statevector, num_qubits)
-                    density = QuantumEngine.calculate_density_matrix(statevector)
-                    entropies = QuantumEngine.single_qubit_entropies(statevector, num_qubits)
-
-                    timeline = None
-                    if enable_timeline:
-                        timeline = QuantumEngine.simulate_timeline(qc, num_qubits=num_qubits, max_steps=200)
-
-                    qc_opt = None
-                    qasm_opt = None
-                    qasm3_opt = None
                     try:
-                        if optimize_circuit:
-                            qc_opt = transpile(qc, optimization_level=int(opt_level))
-                            qasm_opt = qc_opt.qasm() if hasattr(qc_opt, "qasm") else str(qc_opt)
-                            try:
-                                from qiskit import qasm3 as _qasm3  # type: ignore
+                        start_time = time.time()
 
-                                qasm3_opt = _qasm3.dumps(qc_opt)
-                            except Exception:
-                                qasm3_opt = None
-                    except Exception as e:
-                        st.warning(f"Optimization skipped: {e}")
-                    
-                    # Noisy simulation
-                    counts = None
-                    if noise_model != 'ideal' or sample_measurements:
-                        counts_result = QuantumEngine.simulate_with_noise(qc, noise_model, shots)
-                        counts = counts_result['counts']
-                    
-                    # Export QASM
-                    qasm_str = qc.qasm() if hasattr(qc, 'qasm') else str(qc)
-                    qasm3_str = None
-                    try:
-                        from qiskit import qasm3 as _qasm3  # type: ignore
+                        # Build circuit
+                        qc_custom_backup = dict(st.session_state.custom_gates)
+                        if use_pipeline and st.session_state.pipeline:
+                            composed = _compose_blocks(st.session_state.pipeline)
+                            num_qubits = int(composed["num_qubits"])
+                            st.session_state.custom_gates = dict(composed["custom_gates"])
+                            qc = QuantumEngine.build_circuit(num_qubits, composed["gates"])
+                        else:
+                            qc = QuantumEngine.build_circuit(num_qubits, st.session_state.gates)
 
-                        qasm3_str = _qasm3.dumps(qc)
-                    except Exception:
-                        qasm3_str = None
-                    
-                    elapsed = time.time() - start_time
-                    
-                    sim_gate_count = len(st.session_state.gates)
-                    if use_pipeline and st.session_state.pipeline:
+                        # Simulate
+                        statevector = QuantumEngine.simulate_statevector(qc)
+                        probabilities = QuantumEngine.calculate_probabilities(statevector, num_qubits)
+                        bloch_data = QuantumEngine.generate_bloch_data(statevector, num_qubits)
+                        density = QuantumEngine.calculate_density_matrix(statevector)
+                        entropies = QuantumEngine.single_qubit_entropies(statevector, num_qubits)
+
+                        timeline = None
+                        if enable_timeline:
+                            timeline = QuantumEngine.simulate_timeline(qc, num_qubits=num_qubits, max_steps=200)
+
+                        qc_opt = None
+                        qasm_opt = None
+                        qasm3_opt = None
                         try:
-                            sim_gate_count = sum(len(st.session_state.circuit_blocks[bid].get("gates", [])) for bid in st.session_state.pipeline)
+                            if optimize_circuit:
+                                qc_opt = transpile(qc, optimization_level=int(opt_level))
+                                qasm_opt = qc_opt.qasm() if hasattr(qc_opt, "qasm") else str(qc_opt)
+                                try:
+                                    from qiskit import qasm3 as _qasm3  # type: ignore
+
+                                    qasm3_opt = _qasm3.dumps(qc_opt)
+                                except Exception:
+                                    qasm3_opt = None
+                        except Exception as e:
+                            st.warning(f"Optimization skipped: {e}")
+
+                        # Noisy simulation
+                        counts = None
+                        if noise_model != 'ideal' or sample_measurements:
+                            counts_result = QuantumEngine.simulate_with_noise(qc, noise_model, shots)
+                            counts = counts_result['counts']
+
+                        # Export QASM
+                        qasm_str = qc.qasm() if hasattr(qc, 'qasm') else str(qc)
+                        qasm3_str = None
+                        try:
+                            from qiskit import qasm3 as _qasm3  # type: ignore
+
+                            qasm3_str = _qasm3.dumps(qc)
                         except Exception:
-                            sim_gate_count = sim_gate_count
+                            qasm3_str = None
 
-                    st.session_state.simulation_result = {
-                        'circuit': qc,
-                        'circuit_optimized': qc_opt,
-                        'statevector': statevector,
-                        'probabilities': probabilities,
-                        'bloch_data': bloch_data,
-                        'density': density,
-                        'entropies': entropies,
-                        'timeline': timeline,
-                        'counts': counts,
-                        'qasm': qasm_str,
-                        'qasm3': qasm3_str,
-                        'qasm_opt': qasm_opt,
-                        'qasm3_opt': qasm3_opt,
-                        'time': elapsed,
-                        'num_gates': sim_gate_count,
-                        'used_pipeline': bool(use_pipeline and st.session_state.pipeline),
-                    }
+                        elapsed = time.time() - start_time
 
-                    # restore editor custom gates (simulation may have temporarily swapped them for pipeline)
-                    st.session_state.custom_gates = qc_custom_backup
-                    
-                    st.success(f"Simulation completed in {elapsed:.3f}s")
-                    st.rerun()
+                        sim_gate_count = len(st.session_state.gates)
+                        if use_pipeline and st.session_state.pipeline:
+                            try:
+                                sim_gate_count = sum(
+                                    len(st.session_state.circuit_blocks[bid].get("gates", []))
+                                    for bid in st.session_state.pipeline
+                                )
+                            except Exception:
+                                sim_gate_count = sim_gate_count
+
+                        st.session_state.simulation_result = {
+                            'circuit': qc,
+                            'circuit_optimized': qc_opt,
+                            'statevector': statevector,
+                            'probabilities': probabilities,
+                            'bloch_data': bloch_data,
+                            'density': density,
+                            'entropies': entropies,
+                            'timeline': timeline,
+                            'counts': counts,
+                            'qasm': qasm_str,
+                            'qasm3': qasm3_str,
+                            'qasm_opt': qasm_opt,
+                            'qasm3_opt': qasm3_opt,
+                            'time': elapsed,
+                            'num_gates': sim_gate_count,
+                            'used_pipeline': bool(use_pipeline and st.session_state.pipeline),
+                        }
+
+                        # restore editor custom gates (simulation may have temporarily swapped them for pipeline)
+                        st.session_state.custom_gates = qc_custom_backup
+
+                        st.success(f"Simulation completed in {elapsed:.3f}s")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Simulation failed: {type(e).__name__}: {e}")
         
         with col2:
             if st.button("Clear Circuit", use_container_width=True):
