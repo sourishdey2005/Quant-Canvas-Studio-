@@ -661,21 +661,115 @@ def main():
     # Custom CSS
     st.markdown("""
         <style>
-        .main {
-            background-color: #0f172a;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        /* Base Typography */
+        html, body, [class*="css"] {
+            font-family: 'Inter', sans-serif;
         }
-        .stAlert {
-            background-color: #1e293b;
-            border: 1px solid #475569;
+
+        /* Modern Dark Theme Backgrounds with Subtle Gradient */
+        .stApp { 
+            background: radial-gradient(circle at top right, #1e293b 0%, #0f172a 40%, #020617 100%); 
         }
-        div[data-testid="stMetricValue"] {
-            font-size: 24px;
+        
+        /* Glassmorphism Sidebar */
+        [data-testid="stSidebar"] { 
+            background-color: rgba(15, 23, 42, 0.6) !important; 
+            backdrop-filter: blur(12px);
+            border-right: 1px solid rgba(255, 255, 255, 0.05); 
+        }
+
+        /* Gradient Typography for Main Headers */
+        h1 { 
+            background: linear-gradient(to right, #38bdf8, #8b5cf6); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            font-weight: 700 !important;
+            letter-spacing: -0.5px;
+        }
+        h2, h3 { color: #f8fafc !important; font-weight: 600 !important; }
+        
+        /* Elegant Alerts */
+        .stAlert { 
+            background-color: rgba(30, 41, 59, 0.5); 
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(56, 189, 248, 0.3); 
+            color: #e2e8f0; 
+            border-radius: 8px;
+        }
+        
+        /* Premium Metrics Cards with Hover Lift */
+        div[data-testid="stMetric"] { 
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.7)); 
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05); 
+            padding: 1.2rem; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        div[data-testid="stMetric"]:hover {
+            transform: translateY(-3px);
+            border-color: rgba(56, 189, 248, 0.5);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        div[data-testid="stMetricValue"] { 
+            font-size: 2rem !important; 
+            font-weight: 700; 
+            color: #38bdf8; 
+        }
+        
+        /* Interactive Buttons */
+        .stButton > button {
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: linear-gradient(to bottom, #1e293b, #0f172a);
+            color: #e2e8f0;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+        }
+        .stButton > button:hover {
+            border-color: #38bdf8;
+            color: #38bdf8;
+            transform: scale(1.02);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+        }
+        .stButton > button:active {
+            transform: scale(0.98);
+        }
+
+        /* Primary Button (Run Simulation) Glow */
+        .stButton > button[kind="primary"] {
+            background: linear-gradient(to right, #0ea5e9, #6366f1);
+            border: none;
+            color: white;
+            font-weight: 600;
+        }
+        .stButton > button[kind="primary"]:hover {
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+            color: white;
+        }
+        
+        /* Expanders & Code */
+        div[data-testid="stExpander"] { 
+            background-color: rgba(30, 41, 59, 0.4); 
+            border: 1px solid rgba(255, 255, 255, 0.05); 
+            border-radius: 8px; 
+            backdrop-filter: blur(4px);
+        }
+        
+        /* Subheader aesthetic */
+        h3 {
+            margin-top: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
         </style>
     """, unsafe_allow_html=True)
     
     # Header
-    st.title("⚛️ Qircuit Studio")
+    st.title("⚛️ Quantum Circuit Designer")
     st.markdown("Interactive Quantum Circuit Visualizer")
     
     # Initialize session state
@@ -1241,10 +1335,18 @@ def main():
             st.info("Run simulation to see visualizations")
     
     # Footer
-    st.divider()
     st.markdown("""
-        <div style='text-align: center; color: #94a3b8; padding: 1rem;'>
-            <p>Qircuit Studio - Quantum Circuit Visualizer | Built with Streamlit & Qiskit</p>
+        <div style='text-align: center; color: #94a3b8; padding: 2.5rem 1rem; margin-top: 3rem; border-top: 1px solid rgba(255, 255, 255, 0.05); background: linear-gradient(90deg, transparent, rgba(15, 23, 42, 0.4), transparent);'>
+            <p style='font-size: 1.15em; font-weight: 600; color: #f8fafc; margin-bottom: 0.3rem; letter-spacing: 0.5px;'>
+                Quantum Circuit Designer
+            </p>
+            <p style='font-size: 0.9em; color: #64748b; margin-bottom: 1rem;'>
+                Interactive Quantum Circuit Visualizer • Built with Streamlit & Qiskit
+            </p>
+            <p style='font-size: 1.05em;'>
+                <span style='color: #94a3b8;'>Made By </span> 
+                <a href='https://github.com/sourishdey2005' target='_blank' style='color: #38bdf8; text-decoration: none; font-weight: 600; letter-spacing: 0.3px; transition: color 0.2s ease-in-out;'>Sourish Dey</a>
+            </p>
         </div>
     """, unsafe_allow_html=True)
 
