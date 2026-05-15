@@ -1346,19 +1346,32 @@ def main():
                     default_param = float(np.pi / 2)
                 elif gate["name"] == "cp":
                     default_param = float(np.pi / 4)
+
+                # Safer defaults to avoid "duplicate bit arguments" (control equals target)
+                nq = int(st.session_state.num_qubits)
+                if gate["name"] in {"ccx", "ccz", "mcx", "mcz"} and nq < 3:
+                    st.warning("This gate needs at least 3 qubits. Increase 'Number of Qubits' first.")
+                    continue
+
+                target = 1 if nq > 1 else 0
+                control0 = 0
+                if gate["name"] in {"ccx", "ccz", "mcx", "mcz"}:
+                    target = nq - 1
+                    control0 = 0
+
                 new_gate = Gate(
                     name=gate['name'],
                     label=gate['label'],
-                    qubit=1,
-                    control=0,
+                    qubit=int(target),
+                    control=int(control0) if gate["name"] not in {"ccx", "ccz", "mcx", "mcz"} else None,
                     position=len(st.session_state.gates),
                     param=default_param,
                     description=gate['description']
                 )
                 if gate["name"] in {"ccx", "ccz"}:
-                    new_gate.controls = [0, min(1, st.session_state.num_qubits - 1)]
+                    new_gate.controls = [0, 1]
                 if gate["name"] in {"mcx", "mcz"}:
-                    new_gate.controls = [0, min(1, st.session_state.num_qubits - 1)]
+                    new_gate.controls = [0, 1]
                 st.session_state.gates.append(new_gate)
                 _push_history()
                 st.rerun()
@@ -1844,8 +1857,10 @@ def main():
                 ctrl = None
                 controls: Optional[List[int]] = None
                 if chosen_item["key"] in {"ccx", "ccz"}:
-                    c1 = st.number_input("Control 1", min_value=0, max_value=num_qubits - 1, value=0)
-                    c2 = st.number_input("Control 2", min_value=0, max_value=num_qubits - 1, value=min(1, num_qubits - 1))
+                    default_c1 = 0
+                    default_c2 = 1 if int(tgt) != 1 else (2 if num_qubits > 2 else 0)
+                    c1 = st.number_input("Control 1", min_value=0, max_value=num_qubits - 1, value=int(default_c1))
+                    c2 = st.number_input("Control 2", min_value=0, max_value=num_qubits - 1, value=int(default_c2))
                     controls = [int(c1), int(c2)]
                 elif chosen_item["key"] in {"mcx", "mcz"}:
                     opts = [i for i in range(num_qubits) if i != int(tgt)]
