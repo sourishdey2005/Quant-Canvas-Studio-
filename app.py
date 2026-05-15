@@ -1667,12 +1667,24 @@ def main():
                         else:
                             qc = QuantumEngine.build_circuit(num_qubits, st.session_state.gates)
 
-                        # Simulate
+                        # Simulate (keep UI responsive even if some post-processing fails)
                         statevector = QuantumEngine.simulate_statevector(qc)
                         probabilities = QuantumEngine.calculate_probabilities(statevector, num_qubits)
-                        bloch_data = QuantumEngine.generate_bloch_data(statevector, num_qubits)
-                        density = QuantumEngine.calculate_density_matrix(statevector)
-                        entropies = QuantumEngine.single_qubit_entropies(statevector, num_qubits)
+                        try:
+                            bloch_data = QuantumEngine.generate_bloch_data(statevector, num_qubits)
+                        except Exception as e:
+                            st.warning(f"Bloch data skipped: {type(e).__name__}: {e}")
+                            bloch_data = []
+                        try:
+                            density = QuantumEngine.calculate_density_matrix(statevector)
+                        except Exception as e:
+                            st.warning(f"Density matrix skipped: {type(e).__name__}: {e}")
+                            density = None
+                        try:
+                            entropies = QuantumEngine.single_qubit_entropies(statevector, num_qubits)
+                        except Exception as e:
+                            st.warning(f"Entropies skipped: {type(e).__name__}: {e}")
+                            entropies = None
 
                         timeline = None
                         if enable_timeline:
@@ -2142,8 +2154,8 @@ def main():
     
     with col2:
         st.header("Visualizations")
-        
-        if st.session_state.simulation_result:
+
+        if st.session_state.simulation_result is not None:
             result = st.session_state.simulation_result
 
             tab_bloch, tab_probs, tab_amps, tab_density, tab_timeline, tab_code = st.tabs(
@@ -2186,7 +2198,7 @@ def main():
                 st.subheader("Circuit Metrics")
                 col_m1, col_m2, col_m3 = st.columns(3)
                 col_m1.metric("Qubits", num_qubits)
-                col_m2.metric("Gates", result['num_gates'])
+                col_m2.metric("Gates", result["num_gates"])
                 col_m3.metric("Time", f"{result['time']:.3f}s")
 
                 try:
@@ -2202,7 +2214,7 @@ def main():
                 if result.get("entropies") is not None:
                     st.caption(
                         "Single-qubit entropies (0=pure, 1=maximally mixed): "
-                        + ", ".join([f"q{i}={v:.3f}" for i, v in enumerate(result['entropies'])])
+                        + ", ".join([f"q{i}={v:.3f}" for i, v in enumerate(result["entropies"])])
                     )
 
             with tab_code:
