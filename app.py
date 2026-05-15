@@ -1697,8 +1697,13 @@ def main():
                         # Noisy simulation
                         counts = None
                         if noise_model != 'ideal' or sample_measurements:
-                            counts_result = QuantumEngine.simulate_with_noise(qc, noise_model, shots)
-                            counts = counts_result['counts']
+                            try:
+                                counts_result = QuantumEngine.simulate_with_noise(qc, noise_model, shots)
+                                counts = counts_result.get('counts') if isinstance(counts_result, dict) else None
+                            except Exception as e:
+                                # Don't fail the whole simulation if Aer/noise backends aren't available.
+                                st.warning(f"Measurement/noise simulation skipped: {type(e).__name__}: {e}")
+                                counts = None
 
                         # Export QASM
                         qasm_str = qc.qasm() if hasattr(qc, 'qasm') else str(qc)
