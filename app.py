@@ -9,6 +9,7 @@ Python Version: 3.10+
 
 import json
 import time
+import random
 from typing import Optional, List, Dict, Any
 from enum import Enum
 from dataclasses import dataclass, field, asdict
@@ -615,6 +616,137 @@ def plot_density_matrix_heatmap(density: np.ndarray) -> go.Figure:
     return fig
 
 # ============================================================================
+# Preset Library Generator
+# ============================================================================
+
+PRESET_CATEGORIES = {
+    "Basic Quantum States": ["Bell State", "GHZ State", "W State", "Cat State", "Cluster State", "Dicke State", "Werner State", "Graph State", "Product State", "Random Pure State", "Maximally Mixed State"],
+    "Superposition & Interference": ["Single-Qubit Superposition", "Double Hadamard Interference", "Quantum Interference Demo", "Phase Kickback Demo", "Constructive Interference", "Destructive Interference", "Quantum Coin Toss", "Quantum Random Generator"],
+    "Entanglement": ["Bell Pair Generator", "Multi-Qubit GHZ", "Entanglement Swapping", "Quantum Teleportation", "Superdense Coding", "Entangled Cluster Chain", "Controlled Entanglement Network", "Entanglement Purification"],
+    "Core Algorithms": ["Deutsch Algorithm", "Deutsch-Jozsa Algorithm", "Bernstein-Vazirani Algorithm", "Simon's Algorithm", "Grover's Search", "Quantum Fourier Transform (QFT)", "Inverse QFT", "Quantum Phase Estimation (QPE)", "Amplitude Amplification", "Quantum Counting"],
+    "Cryptography": ["BB84 Quantum Key Distribution", "E91 Quantum Cryptography", "Quantum One-Time Pad", "Quantum Secret Sharing", "Quantum Coin Flipping"],
+    "Quantum Machine Learning": ["Variational Quantum Circuit", "Quantum Neural Network", "Quantum Feature Map", "Data Encoding Circuit", "Quantum Kernel Circuit", "VQE Ansatz", "QAOA Ansatz", "Hardware Efficient Ansatz", "Tensor Network Ansatz"],
+    "Quantum Error Correction": ["Bit Flip Code", "Phase Flip Code", "Shor Code", "Steane Code", "Surface Code Demo", "Repetition Code", "Syndrome Detection Circuit", "Logical Qubit Encoding"],
+    "Noise & Decoherence": ["Depolarizing Noise Demo", "Amplitude Damping Demo", "Phase Damping Demo", "Thermal Relaxation Demo", "Readout Error Demo", "Noisy Bell State", "Fidelity Decay Demo"],
+    "Hardware & Optimization": ["IBM Native Basis Demo", "IonQ Native Gates Demo", "Superconducting Qubit Demo", "Circuit Depth Reduction", "Gate Cancellation Demo", "Optimized QFT", "Hardware Mapping Demo"],
+    "Physics & Chemistry": ["Ising Model Simulation", "Heisenberg Spin Chain", "Quantum Harmonic Oscillator", "Molecular Hamiltonian Demo", "Hydrogen Molecule VQE", "Quantum Tunneling Demo", "Spin Interaction Demo"],
+    "Educational": ["Bloch Sphere Rotation Demo", "Basis Change Demo", "Measurement Collapse Demo", "Phase Visualization Demo", "Controlled Gate Demo", "Toffoli Gate Demo", "Quantum vs Classical Demo", "Tensor Product Demo"],
+    "Advanced Research": ["Quantum Walk", "Quantum Annealing", "Adiabatic Evolution", "Quantum Chaos Demo", "Tensor Network Demo", "Quantum Volume Benchmark", "Randomized Benchmarking", "Quantum Supremacy Sampling"]
+}
+
+def generate_preset_circuit(name: str, nq: int) -> tuple[List[Gate], int]:
+    """Generates a functional circuit mapping based on semantic analysis of the requested preset."""
+    gates = []
+    pos = 0
+    
+    def add(g, q, c=None, c2=None, p=None, p2=None, p3=None):
+        nonlocal pos
+        labels = {'h':'H', 'x':'X', 'y':'Y', 'z':'Z', 's':'S', 't':'T', 'cx':'CNOT', 'cz':'CZ', 'cy':'CY',
+                  'rx':'Rx', 'ry':'Ry', 'rz':'Rz', 'crx':'CRX', 'rxx':'XX', 'ryy':'YY', 'rzz':'ZZ',
+                  'swap':'SWAP', 'ccx':'CCX', 'measure':'M', 'u':'U3', 'id':'I'}
+        gates.append(Gate(name=g, label=labels.get(g, g.upper()), qubit=q, position=pos, control=c, control2=c2, param=p, param2=p2, param3=p3))
+        pos += 1
+        
+    nl = name.lower()
+    
+    if "bell" in nl or "e91" in nl or "epr" in nl:
+        nq = max(nq, 2)
+        add('h', 0); add('cx', 1, c=0)
+        if "noisy" in nl: add('id', 0)
+    elif "ghz" in nl or "cat" in nl:
+        nq = max(nq, 3)
+        add('h', 0)
+        for i in range(nq-1): add('cx', i+1, c=i)
+    elif "w state" in nl:
+        nq = max(nq, 3)
+        add('ry', 0, p=1.91); add('crx', 1, c=0, p=1.57); add('cx', 2, c=1); add('cx', 1, c=0); add('x', 0)
+    elif "cluster" in nl or "graph" in nl:
+        nq = max(nq, 3)
+        for i in range(nq): add('h', i)
+        for i in range(nq-1): add('cz', i+1, c=i)
+    elif "teleportation" in nl:
+        nq = max(nq, 3)
+        add('x', 0)
+        add('h', 1); add('cx', 2, c=1)
+        add('cx', 1, c=0); add('h', 0)
+        add('cx', 2, c=1); add('cz', 2, c=0)
+    elif "superdense" in nl:
+        nq = max(nq, 2)
+        add('h', 0); add('cx', 1, c=0)
+        add('x', 0); add('z', 0)
+        add('cx', 1, c=0); add('h', 0)
+    elif "deutsch" in nl or "bernstein" in nl or "simon" in nl:
+        nq = max(nq, 2) if "jozsa" not in nl else max(nq, 3)
+        add('x', nq-1)
+        for i in range(nq): add('h', i)
+        for i in range(nq-1): add('cx', nq-1, c=i)
+        for i in range(nq-1): add('h', i)
+    elif "grover" in nl or "search" in nl or "amplification" in nl:
+        nq = max(nq, 2)
+        for i in range(nq): add('h', i)
+        add('cz', 1, c=0)
+        for i in range(nq): add('h', i); add('x', i)
+        add('cz', 1, c=0)
+        for i in range(nq): add('x', i); add('h', i)
+    elif "qft" in nl or "fourier" in nl or "phase estimation" in nl:
+        nq = max(nq, 3)
+        add('h', 0); add('cz', 1, c=0); add('cz', 2, c=0)
+        add('h', 1); add('cz', 2, c=1)
+        add('h', 2); add('swap', 2, c=0)
+    elif "ansatz" in nl or "vqe" in nl or "qaoa" in nl or "machine learning" in nl or "neural" in nl or "network" in nl:
+        nq = max(nq, 2)
+        for i in range(nq): add('ry', i, p=1.57)
+        for i in range(nq-1): add('cx', i+1, c=i)
+        for i in range(nq): add('rx', i, p=0.78)
+    elif "code" in nl or "error" in nl or "syndrome" in nl or "correction" in nl:
+        nq = max(nq, 3)
+        add('cx', 1, c=0); add('cx', 2, c=0)
+        add('x', 0)
+        if "phase" in nl:
+            for i in range(3): add('h', i)
+        add('cx', 1, c=0); add('cx', 2, c=0); add('ccx', 0, c=1, c2=2)
+    elif "bb84" in nl or "cryptography" in nl or "pad" in nl or "secret" in nl:
+        nq = max(nq, 2)
+        add('x', 0); add('h', 0)
+        add('h', 0); add('measure', 0)
+    elif "ising" in nl or "heisenberg" in nl or "spin" in nl or "chemistry" in nl or "molecule" in nl or "hamiltonian" in nl:
+        nq = max(nq, 3)
+        for i in range(nq): add('h', i)
+        for i in range(nq-1): add('rzz', i+1, c=i, p=0.8)
+        for i in range(nq): add('rx', i, p=0.4)
+    elif "walk" in nl or "chaos" in nl or "supremacy" in nl or "random" in nl or "volume" in nl:
+        nq = max(nq, 3)
+        for _ in range(2):
+            for i in range(nq): add('u', i, p=random.uniform(0, 6.28), p2=random.uniform(0,3.14))
+            for i in range(nq-1): add('cx', i+1, c=i)
+    elif "superposition" in nl or "coin" in nl:
+        add('h', 0)
+        if "coin" in nl or "generator" in nl: add('measure', 0)
+    elif "interference" in nl:
+        add('h', 0)
+        if "destructive" in nl: add('z', 0)
+        add('h', 0)
+    elif "kickback" in nl:
+        nq = max(nq, 2)
+        add('x', 1); add('h', 0); add('h', 1); add('cx', 1, c=0); add('h', 0)
+    elif "bloch" in nl or "rotation" in nl or "phase visualization" in nl:
+        add('rx', 0, p=1.57); add('ry', 0, p=0.78)
+    elif "mixed" in nl or "damping" in nl or "decoherence" in nl or "relaxation" in nl or "decay" in nl:
+        nq = max(nq, 1)
+        add('h', 0); add('id', 0)
+    elif "product" in nl or "basis" in nl or "classical" in nl:
+        nq = max(nq, 2)
+        for i in range(nq): 
+            if i % 2 == 0: add('x', i)
+    elif "depth" in nl or "cancellation" in nl or "optimization" in nl or "transpilation" in nl:
+        nq = max(nq, 2)
+        add('h', 0); add('h', 0); add('cx', 1, c=0); add('cx', 1, c=0); add('rx', 0, p=1.0); add('rx', 0, p=-1.0)
+    else:
+        for i in range(nq): add('h', i)
+
+    return gates, nq
+
+# ============================================================================
 # Streamlit UI
 # ============================================================================
 
@@ -652,7 +784,7 @@ def render_circuit_visualization(gates: List[Gate], num_qubits: int):
 def main():
     """Main Streamlit application"""
     st.set_page_config(
-        page_title="Qircuit Studio",
+        page_title="Quantum Circuit Designer",
         page_icon="⚛️",
         layout="wide",
         initial_sidebar_state="expanded"
@@ -661,7 +793,8 @@ def main():
     # Custom CSS
     st.markdown("""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
         
         /* Base Typography */
         html, body, [class*="css"] {
@@ -670,107 +803,231 @@ def main():
 
         /* Modern Dark Theme Backgrounds with Subtle Gradient */
         .stApp { 
-            background: radial-gradient(circle at top right, #1e293b 0%, #0f172a 40%, #020617 100%); 
+            background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 50%, #020617 100%); 
+            color: #f8fafc;
         }
         
         /* Glassmorphism Sidebar */
         [data-testid="stSidebar"] { 
             background-color: rgba(15, 23, 42, 0.6) !important; 
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(20px);
             border-right: 1px solid rgba(255, 255, 255, 0.05); 
+        }
+        
+        /* Typography */
+        h1, h2, h3, h4, h5, h6 {
+            color: #f8fafc !important;
+            font-family: 'Inter', sans-serif;
         }
 
         /* Gradient Typography for Main Headers */
-        h1 { 
-            background: linear-gradient(to right, #38bdf8, #8b5cf6); 
+        .title-text { 
+            background: linear-gradient(135deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%); 
             -webkit-background-clip: text; 
             -webkit-text-fill-color: transparent; 
-            font-weight: 700 !important;
-            letter-spacing: -0.5px;
+            font-weight: 800 !important;
+            letter-spacing: -1.5px;
+            font-size: 3rem;
+            line-height: 1.2;
         }
-        h2, h3 { color: #f8fafc !important; font-weight: 600 !important; }
+        
+        h2 { font-weight: 700 !important; font-size: 1.75rem !important; letter-spacing: -0.5px; margin-bottom: 1rem !important;}
+        h3 { 
+            font-weight: 600 !important; 
+            font-size: 1.25rem !important; 
+            margin-top: 1.5rem; 
+            padding-bottom: 0.5rem; 
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: #e2e8f0 !important;
+        }
         
         /* Elegant Alerts */
         .stAlert { 
-            background-color: rgba(30, 41, 59, 0.5); 
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(56, 189, 248, 0.3); 
+            background-color: rgba(14, 165, 233, 0.1); 
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(14, 165, 233, 0.2); 
             color: #e2e8f0; 
             border-radius: 8px;
         }
         
         /* Premium Metrics Cards with Hover Lift */
         div[data-testid="stMetric"] { 
-            background: linear-gradient(145deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.7)); 
-            backdrop-filter: blur(10px);
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.8)); 
+            backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.05); 
-            padding: 1.2rem; 
+            padding: 1.25rem; 
             border-radius: 12px; 
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease, border-color 0.3s ease;
         }
         div[data-testid="stMetric"]:hover {
-            transform: translateY(-3px);
-            border-color: rgba(56, 189, 248, 0.5);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            transform: translateY(-4px);
+            border-color: rgba(56, 189, 248, 0.4);
+            box-shadow: 0 12px 25px -5px rgba(56, 189, 248, 0.15);
         }
         div[data-testid="stMetricValue"] { 
-            font-size: 2rem !important; 
-            font-weight: 700; 
-            color: #38bdf8; 
+            font-size: 2.25rem !important; 
+            font-weight: 800; 
+            background: linear-gradient(135deg, #f8fafc, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        div[data-testid="stMetricLabel"] {
+            color: #94a3b8 !important;
+            font-weight: 500;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         
         /* Interactive Buttons */
         .stButton > button {
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            background: linear-gradient(to bottom, #1e293b, #0f172a);
-            color: #e2e8f0;
+            background: rgba(30, 41, 59, 0.5);
+            color: #f8fafc;
             font-weight: 500;
-            transition: all 0.2s ease-in-out;
+            padding: 0.5rem 1rem;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(8px);
         }
         .stButton > button:hover {
             border-color: #38bdf8;
             color: #38bdf8;
-            transform: scale(1.02);
-            box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+            background: rgba(30, 41, 59, 0.8);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.1);
         }
         .stButton > button:active {
-            transform: scale(0.98);
+            transform: translateY(0);
         }
 
         /* Primary Button (Run Simulation) Glow */
         .stButton > button[kind="primary"] {
-            background: linear-gradient(to right, #0ea5e9, #6366f1);
-            border: none;
-            color: white;
-            font-weight: 600;
+            background: linear-gradient(135deg, #0ea5e9 0%, #4f46e5 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white !important;
+            font-weight: 700;
+            box-shadow: 0 4px 15px rgba(14, 165, 233, 0.25);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
         .stButton > button[kind="primary"]:hover {
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
-            color: white;
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4);
+            transform: translateY(-2px);
+            border-color: rgba(255,255,255,0.3);
         }
         
         /* Expanders & Code */
         div[data-testid="stExpander"] { 
-            background-color: rgba(30, 41, 59, 0.4); 
+            background-color: rgba(30, 41, 59, 0.3); 
             border: 1px solid rgba(255, 255, 255, 0.05); 
-            border-radius: 8px; 
+            border-radius: 10px; 
             backdrop-filter: blur(4px);
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        div[data-testid="stExpander"]:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            background-color: rgba(30, 41, 59, 0.4); 
+        }
+        div[data-testid="stExpander"] summary {
+            border-radius: 10px;
+        }
+        div[data-testid="stExpander"] summary p {
+            font-weight: 600;
+            color: #e2e8f0;
         }
         
-        /* Subheader aesthetic */
-        h3 {
-            margin-top: 1rem;
-            padding-bottom: 0.5rem;
+        /* Modern Tabs Styling */
+        button[data-baseweb="tab"] {
+            background-color: transparent !important;
+            border-radius: 6px 6px 0 0 !important;
+            padding: 0.75rem 1rem !important;
+            margin-right: 0.25rem;
+            color: #64748b !important;
+            font-weight: 500 !important;
+            border-bottom: 2px solid transparent !important;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+        }
+        button[data-baseweb="tab"]:hover {
+            color: #cbd5e1 !important;
+            background-color: rgba(255, 255, 255, 0.03) !important;
+        }
+        button[data-baseweb="tab"][aria-selected="true"] {
+            color: #38bdf8 !important;
+            font-weight: 600 !important;
+            border-bottom: 2px solid #38bdf8 !important;
+            background-color: rgba(56, 189, 248, 0.1) !important;
+        }
+        div[data-baseweb="tab-list"] {
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            gap: 0;
+        }
+        
+        .stDataFrame { 
+            border-radius: 10px; 
+            overflow: hidden; 
+            border: 1px solid rgba(255, 255, 255, 0.05); 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+        code { 
+            color: #38bdf8 !important; 
+            background-color: rgba(15, 23, 42, 0.8) !important;
+            border-radius: 6px;
+            padding: 0.2em 0.5em;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+            font-size: 0.9em;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* Input Fields */
+        .stTextInput > div > div > input, 
+        .stNumberInput > div > div > input,
+        .stSelectbox > div > div > div {
+            background-color: rgba(15, 23, 42, 0.5) !important;
+            color: #f8fafc !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
+            border-radius: 8px !important;
+            transition: all 0.2s ease;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stTextInput > div > div > input:focus, 
+        .stNumberInput > div > div > input:focus,
+        .stSelectbox > div > div > div:focus-within {
+            border-color: #38bdf8 !important;
+            background-color: rgba(15, 23, 42, 0.8) !important;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15), inset 0 2px 4px rgba(0,0,0,0.1) !important;
+        }
+        
+        /* Sliders */
+        .stSlider > div > div > div > div {
+            background-color: #38bdf8 !important;
+        }
+        .stSlider div[data-testid="stThumbValue"] {
+            background-color: #0f172a;
+            color: #f8fafc;
+            border: 1px solid #38bdf8;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+        
+        /* Progress Bar */
+        .stProgress > div > div > div > div {
+            background-color: #38bdf8;
+            background-image: linear-gradient(90deg, #38bdf8, #818cf8);
         }
         </style>
     """, unsafe_allow_html=True)
     
     # Header
-    st.title("⚛️ Quantum Circuit Designer")
-    st.markdown("Interactive Quantum Circuit Visualizer")
+    st.markdown("""
+        <div style='display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.5rem;'>
+            <span style='font-size: 3rem; -webkit-text-fill-color: initial;'>⚛️</span>
+            <h1 class='title-text' style='margin: 0; padding: 0;'>Quantum Circuit Designer</h1>
+        </div>
+        <p style='color: #94a3b8; font-size: 1.2rem; margin-top: 0; margin-bottom: 2rem; font-weight: 400;'>Interactive Quantum Circuit Visualizer</p>
+    """, unsafe_allow_html=True)
     
     # Initialize session state
     if 'gates' not in st.session_state:
@@ -785,9 +1042,19 @@ def main():
         st.header("🔧 Quantum Gates")
         
         # Gate selection
-        st.subheader("Single-Qubit Gates")
-        for gate in GATE_DEFINITIONS['single_qubit']:
-            if st.button(f"{gate['label']} - {gate['description']}", key=f"gate_{gate['name']}"):
+        gate_categories = {
+            "Single-Qubit Gates": GATE_DEFINITIONS['single_qubit'],
+            "Multi-Qubit Gates": GATE_DEFINITIONS['multi_qubit'],
+            "Other Operations": GATE_DEFINITIONS['other']
+        }
+        
+        selected_cat = st.selectbox("Gate Category", list(gate_categories.keys()))
+        gate_options = {f"{g['label']} - {g['description']}": g for g in gate_categories[selected_cat]}
+        selected_gate = st.selectbox("Select Gate", list(gate_options.keys()))
+        
+        if st.button("➕ Add Gate", use_container_width=True):
+            gate = gate_options[selected_gate]
+            if selected_cat == "Single-Qubit Gates":
                 new_gate = Gate(
                     name=gate['name'],
                     label=gate['label'],
@@ -798,12 +1065,7 @@ def main():
                     param3=0.0 if gate['name'] == 'u' else None,
                     description=gate['description']
                 )
-                st.session_state.gates.append(new_gate)
-                st.rerun()
-        
-        st.subheader("Multi-Qubit Gates")
-        for gate in GATE_DEFINITIONS['multi_qubit']:
-            if st.button(f"{gate['label']} - {gate['description']}", key=f"gate_{gate['name']}"):
+            elif selected_cat == "Multi-Qubit Gates":
                 new_gate = Gate(
                     name=gate['name'],
                     label=gate['label'],
@@ -814,12 +1076,7 @@ def main():
                     param=3.14159 if gate['name'] in ['crx', 'rxx', 'ryy', 'rzz'] else None,
                     description=gate['description']
                 )
-                st.session_state.gates.append(new_gate)
-                st.rerun()
-        
-        st.subheader("Other Operations")
-        for gate in GATE_DEFINITIONS['other']:
-            if st.button(f"{gate['label']} - {gate['description']}", key=f"gate_{gate['name']}"):
+            else:
                 new_gate = Gate(
                     name=gate['name'],
                     label=gate['label'],
@@ -827,8 +1084,8 @@ def main():
                     position=len(st.session_state.gates),
                     description=gate['description']
                 )
-                st.session_state.gates.append(new_gate)
-                st.rerun()
+            st.session_state.gates.append(new_gate)
+            st.rerun()
         
         st.divider()
         
@@ -917,25 +1174,20 @@ def main():
         
         # Preset circuits
         st.divider()
-        st.subheader("📚 Presets")
+        st.subheader("📚 Presets Library")
         
-        if st.button("Create Bell State", use_container_width=True):
-            st.session_state.gates = [
-                Gate(name='h', label='H', qubit=0, position=0, description='Hadamard'),
-                Gate(name='cx', label='CNOT', qubit=1, control=0, position=1, description='CNOT'),
-            ]
-            st.session_state.num_qubits = 2
-            st.session_state.simulation_result = None
-            st.rerun()
+        preset_cat = st.selectbox("Category", list(PRESET_CATEGORIES.keys()))
+        preset_name = st.selectbox("Preset Circuit", PRESET_CATEGORIES[preset_cat])
         
-        if st.button("Create GHZ State", use_container_width=True):
-            st.session_state.gates = [
-                Gate(name='h', label='H', qubit=0, position=0, description='Hadamard'),
-                Gate(name='cx', label='CNOT', qubit=1, control=0, position=1, description='CNOT'),
-                Gate(name='cx', label='CNOT', qubit=2, control=1, position=2, description='CNOT'),
-            ]
-            st.session_state.num_qubits = 3
-            st.session_state.simulation_result = None
+        if st.button("Load Preset", use_container_width=True):
+            with st.spinner(f"Configuring {preset_name}..."):
+                new_gates, req_nq = generate_preset_circuit(preset_name, st.session_state.num_qubits)
+                st.session_state.gates = new_gates
+                st.session_state.num_qubits = req_nq
+                st.session_state.simulation_result = None
+                
+                # Artificial sleep for UI responsiveness during fast calculations
+                time.sleep(0.3)
             st.rerun()
         
         # Export
@@ -950,389 +1202,387 @@ def main():
             )
     
     # Main content area
-    col1, col2 = st.columns([2, 1])
+    st.header("Circuit Builder")
     
-    with col1:
-        st.header("Circuit Builder")
+    # Display current gates
+    if st.session_state.gates:
+        st.write(f"**{len(st.session_state.gates)} gates added**")
         
-        # Display current gates
-        if st.session_state.gates:
-            st.write(f"**{len(st.session_state.gates)} gates added**")
-            
-            # Gate editor
-            st.subheader("Gate Configuration")
-            edited_gates = []
-            for i, gate in enumerate(st.session_state.gates):
-                with st.expander(f"Gate {i+1}: {gate.label} on qubit {gate.qubit}", expanded=False):
-                    col_a, col_b, col_c, col_d = st.columns(4)
-                    with col_a:
-                        safe_qubit = min(gate.qubit, num_qubits - 1)
-                        new_qubit = st.number_input(
-                            "Target Q",
-                            min_value=0,
-                            max_value=num_qubits-1,
-                            value=safe_qubit,
-                            key=f"qubit_{i}"
-                        )
-                    with col_b:
-                        new_position = st.number_input(
-                            "Position",
-                            min_value=0,
-                            value=gate.position,
-                            key=f"pos_{i}"
-                        )
-                    
-                    new_control = getattr(gate, 'control', None)
-                    new_control2 = getattr(gate, 'control2', None)
-                    new_param = getattr(gate, 'param', None)
-                    new_param2 = getattr(gate, 'param2', None)
-                    new_param3 = getattr(gate, 'param3', None)
-                    
-                    with col_c:
-                        if gate.name in ['cx', 'cy', 'cz', 'swap', 'iswap', 'ccx', 'crx', 'rxx', 'ryy', 'rzz']:
-                            safe_control = min(new_control if new_control is not None else 0, num_qubits - 1)
-                            new_control = st.number_input("Ctrl 1", min_value=0, max_value=num_qubits-1, value=safe_control, key=f"ctrl_{i}")
-                        if gate.name in ['ccx']:
-                            safe_control2 = min(new_control2 if new_control2 is not None else (1 if num_qubits > 1 else 0), num_qubits - 1)
-                            new_control2 = st.number_input("Ctrl 2", min_value=0, max_value=num_qubits-1, value=safe_control2, key=f"ctrl2_{i}")
-                            
-                        if gate.name in ['rx', 'ry', 'rz', 'p', 'u', 'crx', 'rxx', 'ryy', 'rzz']:
-                            new_param = st.number_input("Angle θ", value=float(new_param) if new_param is not None else 3.14159, key=f"param_{i}")
-                        if gate.name in ['u']:
-                            new_param2 = st.number_input("Angle ϕ", value=float(new_param2) if new_param2 is not None else 0.0, key=f"param2_{i}")
-                            new_param3 = st.number_input("Angle λ", value=float(new_param3) if new_param3 is not None else 0.0, key=f"param3_{i}")
-                            
-                    with col_d:
-                        st.markdown("<div style='margin-top: 1.75rem;'></div>", unsafe_allow_html=True)
-                        if st.button("🗑️ Remove", key=f"remove_{i}"):
-                            st.session_state.gates.pop(i)
-                            st.rerun()
-                    
-                    edited_gate = Gate(
-                        name=gate.name,
-                        label=gate.label,
-                        qubit=new_qubit,
-                        position=new_position,
-                        control=new_control,
-                        control2=new_control2,
-                        param=new_param,
-                        param2=new_param2,
-                        param3=new_param3,
-                        description=gate.description,
-                        id=gate.id
+        # Gate editor
+        st.subheader("Gate Configuration")
+        edited_gates = []
+        for i, gate in enumerate(st.session_state.gates):
+            with st.expander(f"Gate {i+1}: {gate.label} on qubit {gate.qubit}", expanded=False):
+                col_a, col_b, col_c, col_d = st.columns(4)
+                with col_a:
+                    safe_qubit = min(gate.qubit, num_qubits - 1)
+                    new_qubit = st.number_input(
+                        "Target Q",
+                        min_value=0,
+                        max_value=num_qubits-1,
+                        value=safe_qubit,
+                        key=f"qubit_{i}"
                     )
-                    edited_gates.append(edited_gate)
-            
-            st.session_state.gates = edited_gates
-            
-            # Visual representation
-            render_circuit_visualization(st.session_state.gates, num_qubits)
-        else:
-            st.info("👉 Add gates from the sidebar to build your circuit")
-    
-    with col2:
-        st.header("Visualizations")
-        
-        if st.session_state.simulation_result:
-            result = st.session_state.simulation_result
-
-            tabs = st.tabs([
-                "1. Bloch", "2. Probs", "3. Amps", "4. Density", "5. Timeline", 
-                "6. Code", "7. Entangle", "8. Interfere", "9. Noise", "10. Struct",
-                "11. Fidelity", "12. Space", "13. Optim", "14. Algo", "15. Measure"
-            ])
-            
-            with tabs[0]: # 1. BLOCH SPHERE TAB
-                st.subheader(" Bloch Sphere")
-                bloch_fig = plot_bloch_sphere(result['bloch_data'])
-                st.plotly_chart(bloch_fig, use_container_width=True, key="main_bloch_fig")
-                st.caption("Step-wise rotation animation requires timeline feature to be enabled.")
+                with col_b:
+                    new_position = st.number_input(
+                        "Position",
+                        min_value=0,
+                        value=gate.position,
+                        key=f"pos_{i}"
+                    )
                 
-            with tabs[1]: # 2. PROBABILITIES TAB
-                st.subheader(" Statevector")
-                sv_fig = plot_statevector(result['probabilities'])
-                st.plotly_chart(sv_fig, use_container_width=True, key="main_sv_fig")
+                new_control = getattr(gate, 'control', None)
+                new_control2 = getattr(gate, 'control2', None)
+                new_param = getattr(gate, 'param', None)
+                new_param2 = getattr(gate, 'param2', None)
+                new_param3 = getattr(gate, 'param3', None)
                 
-                if result['counts']:
-                    st.subheader(" Measurements")
-                    meas_fig = plot_measurements(result['counts'])
-                    st.plotly_chart(meas_fig, use_container_width=True, key="main_meas_fig")
-                else:
-                    st.info("Run simulation with a noise model or shots > 0 to see measurement counts.")
-            
-            with tabs[2]: # 3. AMPLITUDES TAB
-                st.subheader(" Complex Amplitudes")
-                amp_fig = plot_complex_amplitudes(result['statevector'], num_qubits)
-                st.plotly_chart(amp_fig, use_container_width=True, key="main_amp_fig")
-                
-                st.subheader(" State Phases")
-                phase_fig = plot_phases(result['statevector'], num_qubits)
-                st.plotly_chart(phase_fig, use_container_width=True, key="main_phase_fig")
-                
-                st.subheader(" Amplitude Table")
-                amps = np.asarray(result['statevector']).flatten()
-                df_amps = []
-                for i, amp in enumerate(amps):
-                    p = np.abs(amp)**2
-                    if p > 1e-10:
-                        df_amps.append({
-                            "State": format(i, f"0{num_qubits}b"),
-                            "Real": float(np.real(amp)),
-                            "Imag": float(np.imag(amp)),
-                            "Mag": float(np.abs(amp)),
-                            "Phase (rad)": float(np.angle(amp)),
-                            "Prob": float(p)
-                        })
-                if df_amps:
-                    st.dataframe(df_amps, use_container_width=True)
-            
-            with tabs[3]: # 4. DENSITY MATRIX TAB
-                if result.get('density_matrix') is not None:
-                    st.subheader(" Density Matrix")
-                    density_fig = plot_density_matrix_heatmap(result['density_matrix'])
-                    st.plotly_chart(density_fig, use_container_width=True, key="main_density_fig")
-                elif num_qubits > 6:
-                    st.info("Density Matrix visualization disabled for > 6 qubits to conserve memory.")
-                
-                st.subheader(" Circuit Metrics")
-                col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-                col_m1.metric("Qubits", num_qubits)
-                col_m2.metric("Gates", result['num_gates'])
-                col_m3.metric("Depth", result.get('depth', 'N/A'))
-                col_m4.metric("Size", result.get('size', 'N/A'))
-                
-                col_w1, col_w2, col_w3, col_w4 = st.columns(4)
-                col_w1.metric("Width", result.get('width', 'N/A'))
-                col_w2.metric("Time", f"{result['time']:.3f}s")
-                st.caption("Single-qubit entropies require advanced density matrix analysis feature.")
-            
-            with tabs[4]: # 5. TIMELINE TAB
-                st.subheader(" Timeline Explorer")
-                if result.get('timeline'):
-                    max_step = len(result['timeline']) - 1
-                    
-                    if 'tl_step' not in st.session_state:
-                        st.session_state.tl_step = 0
-                    if st.session_state.tl_step > max_step:
-                        st.session_state.tl_step = max_step
+                with col_c:
+                    if gate.name in ['cx', 'cy', 'cz', 'swap', 'iswap', 'ccx', 'crx', 'rxx', 'ryy', 'rzz']:
+                        safe_control = min(new_control if new_control is not None else 0, num_qubits - 1)
+                        new_control = st.number_input("Ctrl 1", min_value=0, max_value=num_qubits-1, value=safe_control, key=f"ctrl_{i}")
+                    if gate.name in ['ccx']:
+                        safe_control2 = min(new_control2 if new_control2 is not None else (1 if num_qubits > 1 else 0), num_qubits - 1)
+                        new_control2 = st.number_input("Ctrl 2", min_value=0, max_value=num_qubits-1, value=safe_control2, key=f"ctrl2_{i}")
                         
-                    # Playback controls
-                    col_p1, col_p2, col_p3, col_p4 = st.columns([1, 1, 1, 3])
-                    with col_p1:
-                        if st.button("⏮️ Prev", use_container_width=True):
-                            st.session_state.tl_step = max(0, st.session_state.tl_step - 1)
-                            st.session_state.tl_playing = False
-                    with col_p2:
-                        if st.button("▶️ Play / Pause", use_container_width=True):
-                            st.session_state.tl_playing = not getattr(st.session_state, 'tl_playing', False)
-                    with col_p3:
-                        if st.button("⏭️ Next", use_container_width=True):
-                            st.session_state.tl_step = min(max_step, st.session_state.tl_step + 1)
-                            st.session_state.tl_playing = False
-                            
-                    current_step = st.session_state.tl_step
-                    selected_step = st.slider("Circuit Step", 0, max_step, value=current_step, key="tl_step_slider")
-                    
-                    if selected_step != current_step:
-                        st.session_state.tl_step = selected_step
-                        st.session_state.tl_playing = False
+                    if gate.name in ['rx', 'ry', 'rz', 'p', 'u', 'crx', 'rxx', 'ryy', 'rzz']:
+                        new_param = st.number_input("Angle θ", value=float(new_param) if new_param is not None else 3.14159, key=f"param_{i}")
+                    if gate.name in ['u']:
+                        new_param2 = st.number_input("Angle ϕ", value=float(new_param2) if new_param2 is not None else 0.0, key=f"param2_{i}")
+                        new_param3 = st.number_input("Angle λ", value=float(new_param3) if new_param3 is not None else 0.0, key=f"param3_{i}")
+                        
+                with col_d:
+                    st.markdown("<div style='margin-top: 1.75rem;'></div>", unsafe_allow_html=True)
+                    if st.button("🗑️ Remove", key=f"remove_{i}"):
+                        st.session_state.gates.pop(i)
                         st.rerun()
-                        
-                    step_data = result['timeline'][st.session_state.tl_step]
-                    st.write(f"**Gate Applied:** `{step_data['gate']}` (Step {step_data['step']} of {max_step})")
-                    
-                    col_t1, col_t2 = st.columns(2)
-                    with col_t1:
-                        sv_step = step_data['statevector']
-                        step_probs = QuantumEngine.calculate_probabilities(sv_step, num_qubits)
-                        st.plotly_chart(plot_statevector(step_probs), use_container_width=True, key="tl_sv_fig")
-                    with col_t2:
-                        step_bloch = QuantumEngine.generate_bloch_data(sv_step, num_qubits)
-                        st.plotly_chart(plot_bloch_sphere(step_bloch), use_container_width=True, key="tl_bloch_fig")
-                        
-                    # Auto-play logic loop
-                    if getattr(st.session_state, 'tl_playing', False):
-                        if st.session_state.tl_step < max_step:
-                            time.sleep(0.75)
-                            st.session_state.tl_step += 1
-                            st.rerun()
-                        else:
-                            st.session_state.tl_playing = False
-                else:
-                    st.info("Timeline data not available.")
+                
+                edited_gate = Gate(
+                    name=gate.name,
+                    label=gate.label,
+                    qubit=new_qubit,
+                    position=new_position,
+                    control=new_control,
+                    control2=new_control2,
+                    param=new_param,
+                    param2=new_param2,
+                    param3=new_param3,
+                    description=gate.description,
+                    id=gate.id
+                )
+                edited_gates.append(edited_gate)
+        
+        st.session_state.gates = edited_gates
+        
+        # Visual representation
+        render_circuit_visualization(st.session_state.gates, num_qubits)
+    else:
+        st.info("👉 Add gates from the sidebar to build your circuit")
+        
+    st.divider()
+    
+    st.header("Visualizations & Analytics")
+    
+    if st.session_state.simulation_result:
+        result = st.session_state.simulation_result
+
+        tabs = st.tabs([
+            "🌐 1. Bloch", "📊 2. Probs", "✨ 3. Amps", "🧊 4. Density", "⏱️ 5. Timeline", 
+            "💻 6. Code", "🔗 7. Entangle", "🌊 8. Interfere", "🌫️ 9. Noise", "🏗️ 10. Struct",
+            "🎯 11. Fidelity", "🔭 12. Space", "⚡ 13. Optim", "🧠 14. Algo", "📐 15. Measure"
+        ])
+        
+        with tabs[0]: # 1. BLOCH SPHERE TAB
+            st.subheader("Bloch Sphere Representation")
+            bloch_fig = plot_bloch_sphere(result['bloch_data'])
+            st.plotly_chart(bloch_fig, use_container_width=True, key="main_bloch_fig")
+            st.caption("Step-wise rotation animation requires timeline feature to be enabled.")
             
-            with tabs[5]: # 6. CODE TAB
-                st.subheader(" OpenQASM 2")
-                st.code(result['qasm'], language='qasm')
-                st.subheader("📜 OpenQASM 3")
-                try:
-                    from qiskit import qasm3
-                    qc_out = QuantumEngine.build_circuit(num_qubits, st.session_state.gates)
-                    st.code(qasm3.dumps(qc_out), language='qasm')
-                except ImportError:
-                    st.info("OpenQASM 3 output is not available (Qiskit qasm3 module required).")
-                except Exception as e:
-                    st.warning(f"Could not generate OpenQASM 3: {e}")
+        with tabs[1]: # 2. PROBABILITIES TAB
+            st.subheader("Statevector Probabilities")
+            sv_fig = plot_statevector(result['probabilities'])
+            st.plotly_chart(sv_fig, use_container_width=True, key="main_sv_fig")
             
-            with tabs[6]: # 7. ENTANGLEMENT TAB
-                st.subheader(" Entanglement Analytics")
-                if result.get('entropies'):
-                    fig = go.Figure(data=[go.Bar(
-                        x=[f"Q{i}" for i in range(num_qubits)],
-                        y=result['entropies'],
-                        marker_color='#22c55e',
-                        text=[f"{e:.3f}" for e in result['entropies']],
-                        textposition='auto'
-                    )])
-                    fig.update_layout(
-                        title="Single-Qubit Von Neumann Entropy",
-                        xaxis_title="Qubit",
-                        yaxis_title="Entropy (S)",
-                        height=300,
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)'
-                    )
-                    st.plotly_chart(fig, use_container_width=True, key="entangle_bar_fig")
+            if result['counts']:
+                st.subheader("Simulated Measurements")
+                meas_fig = plot_measurements(result['counts'])
+                st.plotly_chart(meas_fig, use_container_width=True, key="main_meas_fig")
+            else:
+                st.info("Run simulation with a noise model or shots > 0 to see measurement counts.")
+        
+        with tabs[2]: # 3. AMPLITUDES TAB
+            st.subheader("Complex Amplitude Distribution")
+            amp_fig = plot_complex_amplitudes(result['statevector'], num_qubits)
+            st.plotly_chart(amp_fig, use_container_width=True, key="main_amp_fig")
+            
+            st.subheader("Polar State Phases")
+            phase_fig = plot_phases(result['statevector'], num_qubits)
+            st.plotly_chart(phase_fig, use_container_width=True, key="main_phase_fig")
+            
+            st.subheader("Raw Amplitude Data")
+            amps = np.asarray(result['statevector']).flatten()
+            df_amps = []
+            for i, amp in enumerate(amps):
+                p = np.abs(amp)**2
+                if p > 1e-10:
+                    df_amps.append({
+                        "State": format(i, f"0{num_qubits}b"),
+                        "Real": float(np.real(amp)),
+                        "Imag": float(np.imag(amp)),
+                        "Mag": float(np.abs(amp)),
+                        "Phase (rad)": float(np.angle(amp)),
+                        "Prob": float(p)
+                    })
+            if df_amps:
+                st.dataframe(df_amps, use_container_width=True)
+        
+        with tabs[3]: # 4. DENSITY MATRIX TAB
+            if result.get('density_matrix') is not None:
+                st.subheader("Density Matrix Heatmap")
+                density_fig = plot_density_matrix_heatmap(result['density_matrix'])
+                st.plotly_chart(density_fig, use_container_width=True, key="main_density_fig")
+            elif num_qubits > 6:
+                st.info("Density Matrix visualization disabled for > 6 qubits to conserve memory.")
+            
+            st.subheader("Circuit Complexity Metrics")
+            col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+            col_m1.metric("Qubits", num_qubits)
+            col_m2.metric("Gates", result['num_gates'])
+            col_m3.metric("Depth", result.get('depth', 'N/A'))
+            col_m4.metric("Size", result.get('size', 'N/A'))
+            
+            col_w1, col_w2, col_w3, col_w4 = st.columns(4)
+            col_w1.metric("Width", result.get('width', 'N/A'))
+            col_w2.metric("Time", f"{result['time']:.3f}s")
+            st.caption("Single-qubit entropies require advanced density matrix analysis feature.")
+        
+        with tabs[4]: # 5. TIMELINE TAB
+            st.subheader("Step-by-Step Timeline Explorer")
+            if result.get('timeline'):
+                max_step = len(result['timeline']) - 1
+                
+                if 'tl_step' not in st.session_state:
+                    st.session_state.tl_step = 0
+                if st.session_state.tl_step > max_step:
+                    st.session_state.tl_step = max_step
                     
-                    max_entropy = max(result['entropies'])
-                    if max_entropy > 0.1:
-                        st.success(f"High entanglement detected! Maximum single-qubit entropy: {max_entropy:.3f}")
+                # Playback controls
+                col_p1, col_p2, col_p3, col_p4 = st.columns([1, 1, 1, 3])
+                with col_p1:
+                    if st.button("⏮️ Prev", use_container_width=True):
+                        st.session_state.tl_step = max(0, st.session_state.tl_step - 1)
+                        st.session_state.tl_playing = False
+                with col_p2:
+                    if st.button("▶️ Play / Pause", use_container_width=True):
+                        st.session_state.tl_playing = not getattr(st.session_state, 'tl_playing', False)
+                with col_p3:
+                    if st.button("⏭️ Next", use_container_width=True):
+                        st.session_state.tl_step = min(max_step, st.session_state.tl_step + 1)
+                        st.session_state.tl_playing = False
+                        
+                current_step = st.session_state.tl_step
+                selected_step = st.slider("Circuit Step", 0, max_step, value=current_step, key="tl_step_slider")
+                
+                if selected_step != current_step:
+                    st.session_state.tl_step = selected_step
+                    st.session_state.tl_playing = False
+                    st.rerun()
+                    
+                step_data = result['timeline'][st.session_state.tl_step]
+                st.write(f"**Gate Applied:** `{step_data['gate']}` (Step {step_data['step']} of {max_step})")
+                
+                col_t1, col_t2 = st.columns(2)
+                with col_t1:
+                    sv_step = step_data['statevector']
+                    step_probs = QuantumEngine.calculate_probabilities(sv_step, num_qubits)
+                    st.plotly_chart(plot_statevector(step_probs), use_container_width=True, key="tl_sv_fig")
+                with col_t2:
+                    step_bloch = QuantumEngine.generate_bloch_data(sv_step, num_qubits)
+                    st.plotly_chart(plot_bloch_sphere(step_bloch), use_container_width=True, key="tl_bloch_fig")
+                    
+                # Auto-play logic loop
+                if getattr(st.session_state, 'tl_playing', False):
+                    if st.session_state.tl_step < max_step:
+                        time.sleep(0.75)
+                        st.session_state.tl_step += 1
+                        st.rerun()
                     else:
-                        st.info("Low or no entanglement detected in the current state.")
-                else:
-                    st.info("Entanglement metrics not available.")
-                
-            with tabs[7]: # 8. INTERFERENCE TAB
-                st.subheader(" Quantum Interference")
-                amps = np.asarray(result['statevector']).flatten()
-                
-                # Only show top states if too many qubits to avoid clutter
-                if num_qubits > 6:
-                    st.caption("Showing top 32 basis states due to large state space.")
-                    indices = np.argsort(np.abs(amps))[-32:]
-                    indices = np.sort(indices)
-                else:
-                    indices = np.arange(len(amps))
-                    
-                labels = [format(i, f"0{num_qubits}b") for i in indices]
-                
-                fig = go.Figure()
-                fig.add_trace(go.Bar(x=labels, y=np.real(amps[indices]), name='Real', marker_color='#3b82f6'))
-                fig.add_trace(go.Bar(x=labels, y=np.imag(amps[indices]), name='Imaginary', marker_color='#f59e0b'))
+                        st.session_state.tl_playing = False
+            else:
+                st.info("Timeline data not available.")
+        
+        with tabs[5]: # 6. CODE TAB
+            st.subheader("OpenQASM 2.0 Export")
+            st.code(result['qasm'], language='qasm')
+            st.subheader("OpenQASM 3.0 Export")
+            try:
+                from qiskit import qasm3
+                qc_out = QuantumEngine.build_circuit(num_qubits, st.session_state.gates)
+                st.code(qasm3.dumps(qc_out), language='qasm')
+            except ImportError:
+                st.info("OpenQASM 3 output is not available (Qiskit qasm3 module required).")
+            except Exception as e:
+                st.warning(f"Could not generate OpenQASM 3: {e}")
+        
+        with tabs[6]: # 7. ENTANGLEMENT TAB
+            st.subheader("Entanglement & Entropy Analytics")
+            if result.get('entropies'):
+                fig = go.Figure(data=[go.Bar(
+                    x=[f"Q{i}" for i in range(num_qubits)],
+                    y=result['entropies'],
+                    marker_color='#22c55e',
+                    text=[f"{e:.3f}" for e in result['entropies']],
+                    textposition='auto'
+                )])
                 fig.update_layout(
-                    title="State Amplitudes (Real vs Imaginary Interference)",
-                    barmode='group',
-                    height=350,
+                    title="Single-Qubit Von Neumann Entropy",
+                    xaxis_title="Qubit",
+                    yaxis_title="Entropy (S)",
+                    height=300,
                     paper_bgcolor='rgba(0,0,0,0)',
                     plot_bgcolor='rgba(0,0,0,0)'
                 )
-                st.plotly_chart(fig, use_container_width=True, key="interfere_bar_fig")
-            
-            with tabs[8]: # 9. NOISE & DECOHERENCE TAB
-                st.subheader(" Noise & Decoherence")
-                if result.get('density_matrix') is not None:
-                    dm = result['density_matrix']
-                    purity = float(np.real(np.trace(np.dot(dm, dm))))
-                    col_n1, col_n2 = st.columns(2)
-                    col_n1.metric("State Purity Tr(ρ²)", f"{purity:.4f}")
-                    if purity > 0.999:
-                        col_n2.success("Pure State (Ideal)")
-                    else:
-                        col_n2.warning("Mixed State (Decohered)")
-                else:
-                    st.info("Run with a small number of qubits (≤6) to view purity metrics.")
-            
-            with tabs[9]: # 10. CIRCUIT STRUCTURE TAB
-                st.subheader(" Circuit Structure")
-                if st.session_state.gates:
-                    gate_counts = [0] * num_qubits
-                    for g in st.session_state.gates:
-                        gate_counts[g.qubit] += 1
-                        if g.control is not None:
-                            gate_counts[g.control] += 1
-                    fig = go.Figure(data=[go.Bar(x=[f"Q{i}" for i in range(num_qubits)], y=gate_counts, marker_color='#8b5cf6')])
-                    fig.update_layout(title="Operations per Qubit", yaxis_title="Gate Count", height=300, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-                    st.plotly_chart(fig, use_container_width=True, key="struct_bar_fig")
-                else:
-                    st.info("Add gates to analyze structure.")
+                st.plotly_chart(fig, use_container_width=True, key="entangle_bar_fig")
                 
-            with tabs[10]: # 11. FIDELITY & ERROR ANALYTICS TAB
-                st.subheader(" Fidelity Analytics")
-                if noise_model != 'ideal' and result.get('counts'):
-                    total_shots = sum(result['counts'].values())
-                    theoretical = result['probabilities']
-                    actual = {k: v/total_shots for k, v in result['counts'].items()}
-                    
-                    all_keys = set(theoretical.keys()) | set(actual.keys())
-                    # Classical Bhattacharyya fidelity
-                    fidelity = sum(np.sqrt(theoretical.get(k, 0) * actual.get(k, 0)) for k in all_keys) ** 2
-                    
-                    col_f1, col_f2 = st.columns(2)
-                    col_f1.metric("Classical Measurement Fidelity", f"{fidelity:.4f}")
-                    if fidelity > 0.95:
-                        col_f2.success("High fidelity")
-                    elif fidelity > 0.7:
-                        col_f2.warning("Moderate fidelity reduction")
-                    else:
-                        col_f2.error("Significant noise impact")
-                        
-                    st.info("The ideal expected distribution comparison:")
-                    st.plotly_chart(plot_statevector(result['probabilities']), use_container_width=True, key="fid_ideal_sv_fig")
+                max_entropy = max(result['entropies'])
+                if max_entropy > 0.1:
+                    st.success(f"High entanglement detected! Maximum single-qubit entropy: {max_entropy:.3f}")
                 else:
-                    st.success("Simulation ran in IDEAL mode. Maximum Theoretical Fidelity achieved.")
-                
-            with tabs[11]: # 12. STATE SPACE EXPLORER TAB
-                st.subheader(" State Space Explorer")
-                st.write("Top highly probable basis states (Projection Collapse):")
-                sorted_probs = sorted(result['probabilities'].items(), key=lambda x: x[1], reverse=True)
-                for state, prob in sorted_probs[:5]:
-                    st.progress(prob, text=f"|{state}⟩ : {prob*100:.2f}%")
+                    st.info("Low or no entanglement detected in the current state.")
+            else:
+                st.info("Entanglement metrics not available.")
             
-            with tabs[12]: # 13. CIRCUIT OPTIMIZATION TAB
-                st.subheader(" Circuit Optimization")
-                col_o1, col_o2 = st.columns(2)
-                orig_depth, opt_depth = result.get('depth', 0), result.get('depth_opt', 0)
-                orig_size, opt_size = result.get('size', 0), result.get('size_opt', 0)
-                
-                col_o1.metric("Optimized Depth", opt_depth, delta=opt_depth - orig_depth, delta_color="inverse")
-                col_o2.metric("Optimized Size (Gates)", opt_size, delta=opt_size - orig_size, delta_color="inverse")
-                
-                with st.expander("View Optimized OpenQASM"):
-                    st.code(result.get('qasm_opt', ''), language='qasm')
+        with tabs[7]: # 8. INTERFERENCE TAB
+            st.subheader("Quantum Interference Mapping")
+            amps = np.asarray(result['statevector']).flatten()
             
-            with tabs[13]: # 14. QUANTUM ALGORITHM INSIGHT TAB
-                st.subheader(" Algorithm Insight")
-                gates_used = set(g.name for g in st.session_state.gates)
-                if 'h' in gates_used and ('cx' in gates_used or 'cz' in gates_used):
-                    st.write("💡 **Analysis:** Circuit contains superposition and entanglement generation (e.g., Bell or GHZ state architecture).")
-                elif 'h' in gates_used:
-                    st.write("💡 **Analysis:** Circuit utilizes superposition across parallel basis states.")
+            # Only show top states if too many qubits to avoid clutter
+            if num_qubits > 6:
+                st.caption("Showing top 32 basis states due to large state space.")
+                indices = np.argsort(np.abs(amps))[-32:]
+                indices = np.sort(indices)
+            else:
+                indices = np.arange(len(amps))
+                
+            labels = [format(i, f"0{num_qubits}b") for i in indices]
+            
+            fig = go.Figure()
+            fig.add_trace(go.Bar(x=labels, y=np.real(amps[indices]), name='Real', marker_color='#3b82f6'))
+            fig.add_trace(go.Bar(x=labels, y=np.imag(amps[indices]), name='Imaginary', marker_color='#f59e0b'))
+            fig.update_layout(
+                title="State Amplitudes (Real vs Imaginary Interference)",
+                barmode='group',
+                height=350,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            st.plotly_chart(fig, use_container_width=True, key="interfere_bar_fig")
+        
+        with tabs[8]: # 9. NOISE & DECOHERENCE TAB
+            st.subheader("Noise Channel & Decoherence Impact")
+            if result.get('density_matrix') is not None:
+                dm = result['density_matrix']
+                purity = float(np.real(np.trace(np.dot(dm, dm))))
+                col_n1, col_n2 = st.columns(2)
+                col_n1.metric("State Purity Tr(ρ²)", f"{purity:.4f}")
+                if purity > 0.999:
+                    col_n2.success("Pure State (Ideal)")
                 else:
-                    st.write("💡 **Analysis:** Circuit is executing classical-like operations exclusively in the Z-basis.")
+                    col_n2.warning("Mixed State (Decohered)")
+            else:
+                st.info("Run with a small number of qubits (≤6) to view purity metrics.")
+        
+        with tabs[9]: # 10. CIRCUIT STRUCTURE TAB
+            st.subheader("Physical Circuit Structure")
+            if st.session_state.gates:
+                gate_counts = [0] * num_qubits
+                for g in st.session_state.gates:
+                    gate_counts[g.qubit] += 1
+                    if g.control is not None:
+                        gate_counts[g.control] += 1
+                fig = go.Figure(data=[go.Bar(x=[f"Q{i}" for i in range(num_qubits)], y=gate_counts, marker_color='#8b5cf6')])
+                fig.update_layout(title="Operations per Qubit", yaxis_title="Gate Count", height=300, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True, key="struct_bar_fig")
+            else:
+                st.info("Add gates to analyze structure.")
             
-            with tabs[14]: # 15. MEASUREMENT ANALYTICS TAB
-                st.subheader(" Measurement Analytics")
-                if result.get('counts'):
-                    total_shots = sum(result['counts'].values())
-                    st.write(f"**Total Shots Simulated:** {total_shots}")
-                    
-                    theoretical = result['probabilities']
-                    actual = {k: v/total_shots for k, v in result['counts'].items()}
-                    
-                    all_keys = sorted(list(set(theoretical.keys()) | set(actual.keys())))
-                    theo_vals = [theoretical.get(k, 0.0) for k in all_keys]
-                    act_vals = [actual.get(k, 0.0) for k in all_keys]
-                    
-                    fig = go.Figure()
-                    fig.add_trace(go.Bar(x=all_keys, y=theo_vals, name='Theoretical (Ideal)'))
-                    fig.add_trace(go.Bar(x=all_keys, y=act_vals, name=f'Actual ({total_shots} shots)'))
-                    fig.update_layout(barmode='group', title="Theoretical vs Actual Sampling", height=350, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-                    st.plotly_chart(fig, use_container_width=True, key="meas_comp_fig")
+        with tabs[10]: # 11. FIDELITY & ERROR ANALYTICS TAB
+            st.subheader("Statistical Fidelity Analytics")
+            if noise_model != 'ideal' and result.get('counts'):
+                total_shots = sum(result['counts'].values())
+                theoretical = result['probabilities']
+                actual = {k: v/total_shots for k, v in result['counts'].items()}
+                
+                all_keys = set(theoretical.keys()) | set(actual.keys())
+                # Classical Bhattacharyya fidelity
+                fidelity = sum(np.sqrt(theoretical.get(k, 0) * actual.get(k, 0)) for k in all_keys) ** 2
+                
+                col_f1, col_f2 = st.columns(2)
+                col_f1.metric("Classical Measurement Fidelity", f"{fidelity:.4f}")
+                if fidelity > 0.95:
+                    col_f2.success("High fidelity")
+                elif fidelity > 0.7:
+                    col_f2.warning("Moderate fidelity reduction")
                 else:
-                    st.info("Run simulation with a noise model or shots > 0 to see statistical variance and sampling convergence.")
+                    col_f2.error("Significant noise impact")
+                    
+                st.info("The ideal expected distribution comparison:")
+                st.plotly_chart(plot_statevector(result['probabilities']), use_container_width=True, key="fid_ideal_sv_fig")
+            else:
+                st.success("Simulation ran in IDEAL mode. Maximum Theoretical Fidelity achieved.")
+            
+        with tabs[11]: # 12. STATE SPACE EXPLORER TAB
+            st.subheader("Hilbert Space Projection Collapse")
+            st.write("Top highly probable basis states (Projection Collapse):")
+            sorted_probs = sorted(result['probabilities'].items(), key=lambda x: x[1], reverse=True)
+            for state, prob in sorted_probs[:5]:
+                st.progress(prob, text=f"|{state}⟩ : {prob*100:.2f}%")
+        
+        with tabs[12]: # 13. CIRCUIT OPTIMIZATION TAB
+            st.subheader("Transpiler Optimization (Level 3)")
+            col_o1, col_o2 = st.columns(2)
+            orig_depth, opt_depth = result.get('depth', 0), result.get('depth_opt', 0)
+            orig_size, opt_size = result.get('size', 0), result.get('size_opt', 0)
+            
+            col_o1.metric("Optimized Depth", opt_depth, delta=opt_depth - orig_depth, delta_color="inverse")
+            col_o2.metric("Optimized Size (Gates)", opt_size, delta=opt_size - orig_size, delta_color="inverse")
+            
+            with st.expander("View Optimized OpenQASM"):
+                st.code(result.get('qasm_opt', ''), language='qasm')
+        
+        with tabs[13]: # 14. QUANTUM ALGORITHM INSIGHT TAB
+            st.subheader("Algorithmic Signature Insight")
+            gates_used = set(g.name for g in st.session_state.gates)
+            if 'h' in gates_used and ('cx' in gates_used or 'cz' in gates_used):
+                st.write("💡 **Analysis:** Circuit contains superposition and entanglement generation (e.g., Bell or GHZ state architecture).")
+            elif 'h' in gates_used:
+                st.write("💡 **Analysis:** Circuit utilizes superposition across parallel basis states.")
+            else:
+                st.write("💡 **Analysis:** Circuit is executing classical-like operations exclusively in the Z-basis.")
+        
+        with tabs[14]: # 15. MEASUREMENT ANALYTICS TAB
+            st.subheader("Measurement Sampling Variance")
+            if result.get('counts'):
+                total_shots = sum(result['counts'].values())
+                st.write(f"**Total Shots Simulated:** {total_shots}")
+                
+                theoretical = result['probabilities']
+                actual = {k: v/total_shots for k, v in result['counts'].items()}
+                
+                all_keys = sorted(list(set(theoretical.keys()) | set(actual.keys())))
+                theo_vals = [theoretical.get(k, 0.0) for k in all_keys]
+                act_vals = [actual.get(k, 0.0) for k in all_keys]
+                
+                fig = go.Figure()
+                fig.add_trace(go.Bar(x=all_keys, y=theo_vals, name='Theoretical (Ideal)'))
+                fig.add_trace(go.Bar(x=all_keys, y=act_vals, name=f'Actual ({total_shots} shots)'))
+                fig.update_layout(barmode='group', title="Theoretical vs Actual Sampling", height=350, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True, key="meas_comp_fig")
+            else:
+                st.info("Run simulation with a noise model or shots > 0 to see statistical variance and sampling convergence.")
 
-        else:
-            st.info("Run simulation to see visualizations")
+    else:
+        st.info("Run simulation to see visualizations")
     
     # Footer
     st.markdown("""
