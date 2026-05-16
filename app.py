@@ -1425,19 +1425,19 @@ def main():
     if st.session_state.simulation_result:
         result = st.session_state.simulation_result
 
-        tabs = st.tabs([
+        st.markdown("### 1️⃣ Core States & Circuits")
+        tabs1 = st.tabs([
             "🌐 1. Bloch", "📊 2. Probs", "✨ 3. Amps", "🧊 4. Density", "⏱️ 5. Timeline", 
-            "💻 6. Code", "🔗 7. Entangle", "🌊 8. Interfere", "🌫️ 9. Noise", "🏗️ 10. Struct",
-            "🎯 11. Fidelity", "🔭 12. Space", "⚡ 13. Optim", "🧠 14. Algo", "📐 15. Measure"
+            "💻 6. Code", "🔗 7. 3D Entangle", "🌊 8. 3D Interfere", "🌫️ 9. Noise", "🏗️ 10. Struct"
         ])
         
-        with tabs[0]: # 1. BLOCH SPHERE TAB
+        with tabs1[0]: # 1. BLOCH SPHERE TAB
             st.subheader("Bloch Sphere Representation")
             bloch_fig = plot_bloch_sphere(result['bloch_data'])
             st.plotly_chart(bloch_fig, use_container_width=True, key="main_bloch_fig")
             st.caption("Step-wise rotation animation requires timeline feature to be enabled.")
             
-        with tabs[1]: # 2. PROBABILITIES TAB
+        with tabs1[1]: # 2. PROBABILITIES TAB
             st.subheader("Statevector Probabilities")
             sv_fig = plot_statevector(result['probabilities'])
             st.plotly_chart(sv_fig, use_container_width=True, key="main_sv_fig")
@@ -1449,7 +1449,7 @@ def main():
             else:
                 st.info("Run simulation with a noise model or shots > 0 to see measurement counts.")
         
-        with tabs[2]: # 3. AMPLITUDES TAB
+        with tabs1[2]: # 3. AMPLITUDES TAB
             st.subheader("Complex Amplitude Distribution")
             amp_fig = plot_complex_amplitudes(result['statevector'], num_qubits)
             st.plotly_chart(amp_fig, use_container_width=True, key="main_amp_fig")
@@ -1475,7 +1475,7 @@ def main():
             if df_amps:
                 st.dataframe(df_amps, use_container_width=True)
         
-        with tabs[3]: # 4. DENSITY MATRIX TAB
+        with tabs1[3]: # 4. DENSITY MATRIX TAB
             if result.get('density_matrix') is not None:
                 st.subheader("Density Matrix Heatmap")
                 density_fig = plot_density_matrix_heatmap(result['density_matrix'])
@@ -1495,7 +1495,7 @@ def main():
             col_w2.metric("Time", f"{result['time']:.3f}s")
             st.caption("Single-qubit entropies require advanced density matrix analysis feature.")
         
-        with tabs[4]: # 5. TIMELINE TAB
+        with tabs1[4]: # 5. TIMELINE TAB
             st.subheader("Step-by-Step Timeline Explorer")
             if result.get('timeline'):
                 max_step = len(result['timeline']) - 1
@@ -1550,7 +1550,7 @@ def main():
             else:
                 st.info("Timeline data not available.")
         
-        with tabs[5]: # 6. CODE TAB
+        with tabs1[5]: # 6. CODE TAB
             st.subheader("OpenQASM 2.0 Export")
             st.code(result['qasm'], language='qasm')
             st.subheader("OpenQASM 3.0 Export")
@@ -1563,61 +1563,68 @@ def main():
             except Exception as e:
                 st.warning(f"Could not generate OpenQASM 3: {e}")
         
-        with tabs[6]: # 7. ENTANGLEMENT TAB
-            st.subheader("Entanglement & Entropy Analytics")
+        with tabs1[6]: # 7. 3D ENTANGLE TAB
+            st.subheader("3D Entanglement Graph (Nodes = Qubits)")
             if result.get('entropies'):
-                fig = go.Figure(data=[go.Bar(
-                    x=[f"Q{i}" for i in range(num_qubits)],
-                    y=result['entropies'],
-                    marker_color='#22c55e',
-                    text=[f"{e:.3f}" for e in result['entropies']],
-                    textposition='auto'
+                import math
+                n = num_qubits
+                x = [math.cos(2*math.pi*i/n) for i in range(n)]
+                y = [math.sin(2*math.pi*i/n) for i in range(n)]
+                z = [result['entropies'][i] for i in range(n)]
+                
+                fig = go.Figure(data=[go.Scatter3d(
+                    x=x, y=y, z=z, mode='markers+text',
+                    marker=dict(size=[(e+0.1)*30 for e in z], color=z, colorscale='Viridis', showscale=True),
+                    text=[f"Q{i}" for i in range(n)], textposition="top center"
                 )])
+                
+                if st.session_state.gates:
+                    for g in st.session_state.gates:
+                        if g.control is not None:
+                            fig.add_trace(go.Scatter3d(
+                                x=[x[g.control], x[g.qubit]],
+                                y=[y[g.control], y[g.qubit]],
+                                z=[z[g.control], z[g.qubit]],
+                                mode='lines', line=dict(color='rgba(255,255,255,0.2)', width=2),
+                                showlegend=False
+                            ))
                 fig.update_layout(
-                    title="Single-Qubit Von Neumann Entropy",
-                    xaxis_title="Qubit",
-                    yaxis_title="Entropy (S)",
-                    height=300,
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)'
+                    title="3D Entanglement (Z = Entropy)",
+                    scene=dict(xaxis_title="X", yaxis_title="Y", zaxis_title="Entropy"),
+                    height=450, margin=dict(l=0, r=0, b=0, t=40), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)'
                 )
                 st.plotly_chart(fig, use_container_width=True, key="entangle_bar_fig")
-                
-                max_entropy = max(result['entropies'])
-                if max_entropy > 0.1:
-                    st.success(f"High entanglement detected! Maximum single-qubit entropy: {max_entropy:.3f}")
-                else:
-                    st.info("Low or no entanglement detected in the current state.")
             else:
                 st.info("Entanglement metrics not available.")
             
-        with tabs[7]: # 8. INTERFERENCE TAB
-            st.subheader("Quantum Interference Mapping")
+        with tabs1[7]: # 8. 3D INTERFERE TAB
+            st.subheader("3D Interference Landscape")
             amps = np.asarray(result['statevector']).flatten()
+            probs = np.abs(amps)**2
+            indices = np.where(probs > 1e-10)[0]
             
-            # Only show top states if too many qubits to avoid clutter
-            if num_qubits > 6:
-                st.caption("Showing top 32 basis states due to large state space.")
-                indices = np.argsort(np.abs(amps))[-32:]
-                indices = np.sort(indices)
-            else:
-                indices = np.arange(len(amps))
+            if len(indices) > 0:
+                re = np.real(amps[indices])
+                im = np.imag(amps[indices])
+                p = probs[indices]
+                labels = [format(i, f"0{num_qubits}b") for i in indices]
                 
-            labels = [format(i, f"0{num_qubits}b") for i in indices]
-            
-            fig = go.Figure()
-            fig.add_trace(go.Bar(x=labels, y=np.real(amps[indices]), name='Real', marker_color='#3b82f6'))
-            fig.add_trace(go.Bar(x=labels, y=np.imag(amps[indices]), name='Imaginary', marker_color='#f59e0b'))
-            fig.update_layout(
-                title="State Amplitudes (Real vs Imaginary Interference)",
-                barmode='group',
-                height=350,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)'
-            )
-            st.plotly_chart(fig, use_container_width=True, key="interfere_bar_fig")
+                fig = go.Figure(data=[go.Scatter3d(
+                    x=re, y=im, z=p, mode='markers+text',
+                    marker=dict(size=p*50 + 5, color=p, colorscale='Plasma', showscale=True),
+                    text=labels, hoverinfo='text+x+y+z'
+                )])
+                for i in range(len(indices)):
+                    fig.add_trace(go.Scatter3d(
+                        x=[re[i], re[i]], y=[im[i], im[i]], z=[0, p[i]],
+                        mode='lines', line=dict(color='rgba(255,255,255,0.4)', width=2), showlegend=False
+                    ))
+                fig.update_layout(scene=dict(xaxis_title="Real", yaxis_title="Imaginary", zaxis_title="Probability"), height=450, margin=dict(l=0, r=0, b=0, t=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No interference data.")
         
-        with tabs[8]: # 9. NOISE & DECOHERENCE TAB
+        with tabs1[8]: # 9. NOISE & DECOHERENCE TAB
             st.subheader("Noise Channel & Decoherence Impact")
             if result.get('density_matrix') is not None:
                 dm = result['density_matrix']
@@ -1631,7 +1638,7 @@ def main():
             else:
                 st.info("Run with a small number of qubits (≤6) to view purity metrics.")
         
-        with tabs[9]: # 10. CIRCUIT STRUCTURE TAB
+        with tabs1[9]: # 10. CIRCUIT STRUCTURE TAB
             st.subheader("Physical Circuit Structure")
             if st.session_state.gates:
                 gate_counts = [0] * num_qubits
@@ -1645,7 +1652,14 @@ def main():
             else:
                 st.info("Add gates to analyze structure.")
             
-        with tabs[10]: # 11. FIDELITY & ERROR ANALYTICS TAB
+        st.markdown("---")
+        st.markdown("### 2️⃣ Analytics & Distributions")
+        tabs2 = st.tabs([
+            "🎯 11. Fidelity", "🔭 12. Space", "⚡ 13. Optim", "🧠 14. Algo", "📐 15. Measure",
+            "📈 16. 3D Probs", "📉 17. Time Evol", "🕸️ 18. 3D Q-Sphere", "🥧 19. Gate Freq", "🔥 20. Activity"
+        ])
+        
+        with tabs2[0]: # 11. FIDELITY & ERROR ANALYTICS TAB
             st.subheader("Statistical Fidelity Analytics")
             if noise_model != 'ideal' and result.get('counts'):
                 total_shots = sum(result['counts'].values())
@@ -1670,14 +1684,14 @@ def main():
             else:
                 st.success("Simulation ran in IDEAL mode. Maximum Theoretical Fidelity achieved.")
             
-        with tabs[11]: # 12. STATE SPACE EXPLORER TAB
+        with tabs2[1]: # 12. STATE SPACE EXPLORER TAB
             st.subheader("Hilbert Space Projection Collapse")
             st.write("Top highly probable basis states (Projection Collapse):")
             sorted_probs = sorted(result['probabilities'].items(), key=lambda x: x[1], reverse=True)
             for state, prob in sorted_probs[:5]:
                 st.progress(prob, text=f"|{state}⟩ : {prob*100:.2f}%")
         
-        with tabs[12]: # 13. CIRCUIT OPTIMIZATION TAB
+        with tabs2[2]: # 13. CIRCUIT OPTIMIZATION TAB
             st.subheader("Transpiler Optimization (Level 3)")
             col_o1, col_o2 = st.columns(2)
             orig_depth, opt_depth = result.get('depth', 0), result.get('depth_opt', 0)
@@ -1689,7 +1703,7 @@ def main():
             with st.expander("View Optimized OpenQASM"):
                 st.code(result.get('qasm_opt', ''), language='qasm')
         
-        with tabs[13]: # 14. QUANTUM ALGORITHM INSIGHT TAB
+        with tabs2[3]: # 14. QUANTUM ALGORITHM INSIGHT TAB
             st.subheader("Algorithmic Signature Insight")
             gates_used = set(g.name for g in st.session_state.gates)
             if 'h' in gates_used and ('cx' in gates_used or 'cz' in gates_used):
@@ -1699,7 +1713,7 @@ def main():
             else:
                 st.write("💡 **Analysis:** Circuit is executing classical-like operations exclusively in the Z-basis.")
         
-        with tabs[14]: # 15. MEASUREMENT ANALYTICS TAB
+        with tabs2[4]: # 15. MEASUREMENT ANALYTICS TAB
             st.subheader("Measurement Sampling Variance")
             if result.get('counts'):
                 total_shots = sum(result['counts'].values())
@@ -1719,6 +1733,304 @@ def main():
                 st.plotly_chart(fig, use_container_width=True, key="meas_comp_fig")
             else:
                 st.info("Run simulation with a noise model or shots > 0 to see statistical variance and sampling convergence.")
+
+        with tabs2[5]: # 16. 3D PROBS
+            st.subheader("3D Probability Stem Plot")
+            probs_dict = result['probabilities']
+            if probs_dict:
+                labels = list(probs_dict.keys())
+                p_vals = list(probs_dict.values())
+                import math
+                grid_size = math.ceil(math.sqrt(len(labels)))
+                x_vals = [i % grid_size for i in range(len(labels))]
+                y_vals = [i // grid_size for i in range(len(labels))]
+                    
+                fig = go.Figure()
+                fig.add_trace(go.Scatter3d(
+                    x=x_vals, y=y_vals, z=p_vals, mode='markers',
+                    marker=dict(size=10, color=p_vals, colorscale='teal', showscale=True),
+                    text=labels, hoverinfo='text+z'
+                ))
+                for i in range(len(labels)):
+                    fig.add_trace(go.Scatter3d(
+                        x=[x_vals[i], x_vals[i]], y=[y_vals[i], y_vals[i]], z=[0, p_vals[i]],
+                        mode='lines', line=dict(color='#38bdf8', width=3), showlegend=False
+                    ))
+                fig.update_layout(scene=dict(xaxis_title="Grid X", yaxis_title="Grid Y", zaxis_title="Probability"), height=450, margin=dict(l=0, r=0, b=0, t=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No probabilities data.")
+
+        with tabs2[6]: # 17. TIME SERIES EVOLUTION
+            st.subheader("State Evolution Time Series")
+            if result.get('timeline'):
+                fig = go.Figure()
+                steps = [t['step'] for t in result['timeline']]
+                top_states = sorted(result['probabilities'].items(), key=lambda x: x[1], reverse=True)[:5]
+                top_state_keys = [s[0] for s in top_states]
+                
+                for state in top_state_keys:
+                    state_idx = int(state, 2)
+                    y_vals = []
+                    for t in result['timeline']:
+                        sv = np.asarray(t['statevector'])
+                        p = np.abs(sv[state_idx])**2 if state_idx < len(sv) else 0
+                        y_vals.append(p)
+                    fig.add_trace(go.Scatter(x=steps, y=y_vals, mode='lines+markers', name=f"|{state}⟩"))
+                fig.update_layout(title="Probability Evolution over Circuit Steps", xaxis_title="Step", yaxis_title="Probability", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Timeline data not available.")
+
+        with tabs2[7]: # 18. 3D Q-SPHERE
+            st.subheader("3D Q-Sphere")
+            amps = np.asarray(result['statevector']).flatten()
+            probs = np.abs(amps)**2
+            indices = np.where(probs > 1e-10)[0]
+            if len(indices) > 0:
+                phi, theta = np.meshgrid(np.linspace(0, 2*np.pi, 20), np.linspace(0, np.pi, 10))
+                fig = go.Figure(go.Surface(x=np.sin(theta)*np.cos(phi), y=np.sin(theta)*np.sin(phi), z=np.cos(theta), opacity=0.1, showscale=False, hoverinfo='skip'))
+                
+                x_s, y_s, z_s, c_s, texts = [], [], [], [], []
+                for idx in indices:
+                    state_bin = format(idx, f"0{num_qubits}b")
+                    weight = state_bin.count('1')
+                    z = 1.0 - 2.0 * (weight / num_qubits) if num_qubits > 0 else 1.0
+                    phase = np.angle(amps[idx])
+                    r = np.sqrt(1 - z**2) if (1 - z**2) > 0 else 0
+                    x_s.append(r * np.cos(phase)); y_s.append(r * np.sin(phase)); z_s.append(z)
+                    c_s.append(probs[idx])
+                    texts.append(f"|{state_bin}⟩<br>Prob: {probs[idx]:.3f}<br>Phase: {phase:.2f} rad")
+                    
+                fig.add_trace(go.Scatter3d(x=x_s, y=y_s, z=z_s, mode='markers', marker=dict(size=[p*50+5 for p in c_s], color=c_s, colorscale='Magma', showscale=True), text=texts, hoverinfo='text'))
+                fig.update_layout(scene=dict(xaxis_title="", yaxis_title="", zaxis_title="Hamming Wt"), height=450, margin=dict(l=0, r=0, b=0, t=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No state data.")
+
+        with tabs2[8]: # 19. GATE FREQ
+            st.subheader("Gate Frequency Distribution")
+            if st.session_state.gates:
+                gate_names = [g.name.upper() for g in st.session_state.gates]
+                from collections import Counter
+                counts = Counter(gate_names)
+                fig = go.Figure(data=[go.Pie(labels=list(counts.keys()), values=list(counts.values()), hole=0.4)])
+                fig.update_layout(title="Gate Types Used in Circuit", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No gates in circuit.")
+
+        with tabs2[9]: # 20. ACTIVITY HEATMAP
+            st.subheader("Qubit Activity Heatmap")
+            if st.session_state.gates:
+                num_steps = len(st.session_state.gates)
+                activity = np.zeros((num_qubits, num_steps))
+                for i, g in enumerate(sorted(st.session_state.gates, key=lambda x: x.position)):
+                    activity[g.qubit, i] = 1
+                    if g.control is not None:
+                        activity[g.control, i] = 0.5
+                    if g.control2 is not None:
+                        activity[g.control2, i] = 0.5
+                fig = go.Figure(data=go.Heatmap(z=activity, x=list(range(num_steps)), y=[f"Q{i}" for i in range(num_qubits)], colorscale='Blues'))
+                fig.update_layout(title="Gate Activity per Qubit over Time", xaxis_title="Gate Step", yaxis_title="Qubit", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No gates in circuit.")
+
+        st.markdown("---")
+        st.markdown("### 3️⃣ Advanced Landscapes & Evolution")
+        tabs3 = st.tabs([
+            "🗺️ 21. 2D Amps", "📊 22. 3D Phase Cyl", "🌀 23. Entropy", "🗃️ 24. 3D Evolution", "⏺️ 25. Scatter",
+            "🎢 26. Entropies", "🚀 27. Bloch Traj", "🌊 28. Re/Im", "🌌 29. 3D Surface", "🎻 30. 3D Phase Traj"
+        ])
+        
+        with tabs3[0]: # 21. 2D AMPS
+            st.subheader("Real vs Imaginary 2D Density")
+            amps = np.asarray(result['statevector']).flatten()
+            real_parts = np.real(amps)
+            imag_parts = np.imag(amps)
+            fig = go.Figure(go.Histogram2dContour(x=real_parts, y=imag_parts, colorscale='Viridis'))
+            fig.update_layout(title="Density of Complex Amplitudes", xaxis_title="Real Part", yaxis_title="Imaginary Part", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig, use_container_width=True)
+
+        with tabs3[1]: # 22. 3D PHASE CYL
+            st.subheader("3D Phase-Magnitude Cylinder")
+            amps = np.asarray(result['statevector']).flatten()
+            probs = np.abs(amps)**2
+            indices = np.where(probs > 1e-10)[0]
+            if len(indices) > 0:
+                phases = np.angle(amps[indices])
+                labels = [format(i, f"0{num_qubits}b") for i in indices]
+                x, y, z = np.cos(phases), np.sin(phases), probs[indices]
+                
+                fig = go.Figure(data=[go.Scatter3d(
+                    x=x, y=y, z=z, mode='markers+text',
+                    marker=dict(size=10, color=phases, colorscale='HSV', showscale=True, colorbar=dict(title='Phase')),
+                    text=labels, hoverinfo='text+z'
+                )])
+                for i in range(len(indices)):
+                    fig.add_trace(go.Scatter3d(x=[0, x[i], x[i]], y=[0, y[i], y[i]], z=[0, 0, z[i]], mode='lines', line=dict(color='rgba(255,255,255,0.3)', width=2), showlegend=False))
+                theta = np.linspace(0, 2*np.pi, 50)
+                fig.add_trace(go.Scatter3d(x=np.cos(theta), y=np.sin(theta), z=np.zeros(50), mode='lines', line=dict(color='gray'), showlegend=False))
+                fig.update_layout(scene=dict(xaxis_title="cos(φ)", yaxis_title="sin(φ)", zaxis_title="Probability"), height=450, margin=dict(l=0, r=0, b=0, t=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No phases to plot.")
+
+        with tabs3[2]: # 23. ENTROPY RADAR
+            st.subheader("Von Neumann Entropy Radar")
+            if result.get('entropies'):
+                labels = [f"Q{i}" for i in range(num_qubits)]
+                vals = result['entropies']
+                fig = go.Figure(data=go.Scatterpolar(r=vals + [vals[0]] if vals else [], theta=labels + [labels[0]] if labels else [], fill='toself', marker_color='#22c55e'))
+                fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, max(vals) if vals else 1])), title="Qubit Entropies", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Entropy data not available.")
+
+        with tabs3[3]: # 24. 3D EVOLUTION
+            st.subheader("3D State Evolution Ribbon Plot")
+            if result.get('timeline'):
+                steps = [t['step'] for t in result['timeline']]
+                top_states = sorted(result['probabilities'].items(), key=lambda x: x[1], reverse=True)[:10]
+                
+                fig = go.Figure()
+                for idx_state, (state, _) in enumerate(top_states):
+                    state_idx = int(state, 2)
+                    y_vals = []
+                    for t in result['timeline']:
+                        sv = np.asarray(t['statevector'])
+                        p = np.abs(sv[state_idx])**2 if state_idx < len(sv) else 0
+                        y_vals.append(p)
+                    fig.add_trace(go.Scatter3d(x=steps, y=[idx_state]*len(steps), z=y_vals, mode='lines', line=dict(width=5), name=f"|{state}⟩"))
+                fig.update_layout(scene=dict(xaxis_title="Circuit Step", yaxis=dict(title="State", tickvals=list(range(len(top_states))), ticktext=[s[0] for s in top_states]), zaxis_title="Probability"), height=450, margin=dict(l=0, r=0, b=0, t=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Timeline data not available.")
+
+        with tabs3[4]: # 25. SCATTER
+            st.subheader("Measurement Correlation Scatter")
+            if result.get('counts'):
+                total_shots = sum(result['counts'].values())
+                actual = {k: v/total_shots for k, v in result['counts'].items()}
+                theo = result['probabilities']
+                keys = list(set(theo.keys()) | set(actual.keys()))
+                x_vals = [theo.get(k, 0) for k in keys]
+                y_vals = [actual.get(k, 0) for k in keys]
+                fig = go.Figure(data=go.Scatter(x=x_vals, y=y_vals, mode='markers', text=keys, marker=dict(size=10, color='#818cf8')))
+                fig.add_shape(type="line", x0=0, x1=1, y0=0, y1=1, line=dict(color="red", dash="dash"))
+                fig.update_layout(title="Theoretical vs Actual Probabilities", xaxis_title="Theoretical Probability", yaxis_title="Measured Probability", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Run simulation with shots > 0 to see correlation scatter.")
+
+        with tabs3[5]: # 26. MULTI-CURVE ENTROPY EVOLUTION
+            st.subheader("Qubit Entropy Evolution")
+            if result.get('timeline') and num_qubits <= 6:
+                fig = go.Figure()
+                steps = [t['step'] for t in result['timeline']]
+                ents_over_time = {i: [] for i in range(num_qubits)}
+                
+                for t in result['timeline']:
+                    ents = QuantumEngine.calculate_entropies(t['statevector'])
+                    for i in range(num_qubits):
+                        ents_over_time[i].append(ents[i] if ents else 0)
+                        
+                for i in range(num_qubits):
+                    fig.add_trace(go.Scatter(x=steps, y=ents_over_time[i], mode='lines+markers', name=f'Qubit {i} Entropy', line=dict(width=3)))
+                    
+                fig.update_layout(title="Von Neumann Entropy Dynamics over Time", xaxis_title="Circuit Step", yaxis_title="Entropy (S)", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Timeline data not available or skipped (requires ≤6 qubits).")
+
+        with tabs3[6]: # 27. MULTI-CURVE BLOCH TRAJECTORIES
+            st.subheader("Bloch Vector Trajectories")
+            if result.get('timeline'):
+                fig = go.Figure()
+                steps = [t['step'] for t in result['timeline']]
+                colors = ['#38bdf8', '#818cf8', '#c084fc']
+                
+                for q in range(min(num_qubits, 3)):
+                    x_vals, y_vals, z_vals = [], [], []
+                    for t in result['timeline']:
+                        bd = QuantumEngine.generate_bloch_data(t['statevector'], num_qubits)
+                        if len(bd) > q:
+                            x_vals.append(bd[q]['x'])
+                            y_vals.append(bd[q]['y'])
+                            z_vals.append(bd[q]['z'])
+                    fig.add_trace(go.Scatter(x=steps, y=x_vals, mode='lines', name=f'Q{q} X', line=dict(color=colors[q], dash='solid', width=2)))
+                    fig.add_trace(go.Scatter(x=steps, y=y_vals, mode='lines', name=f'Q{q} Y', line=dict(color=colors[q], dash='dash', width=2)))
+                    fig.add_trace(go.Scatter(x=steps, y=z_vals, mode='lines', name=f'Q{q} Z', line=dict(color=colors[q], dash='dot', width=2)))
+                    
+                fig.update_layout(title="X, Y, Z Component Oscillations over Time (First 3 Qubits)", xaxis_title="Circuit Step", yaxis_title="Vector Component Value", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Timeline data not available.")
+
+        with tabs3[7]: # 28. MULTI-CURVE REAL VS IMAGINARY
+            st.subheader("Real & Imaginary Amplitude Oscillations")
+            if result.get('timeline'):
+                fig = go.Figure()
+                steps = [t['step'] for t in result['timeline']]
+                top_states = sorted(result['probabilities'].items(), key=lambda x: x[1], reverse=True)[:3]
+                
+                for state, _ in top_states:
+                    idx = int(state, 2)
+                    re_vals, im_vals = [], []
+                    for t in result['timeline']:
+                        sv = np.asarray(t['statevector'])
+                        amp = sv[idx] if idx < len(sv) else 0
+                        re_vals.append(np.real(amp))
+                        im_vals.append(np.imag(amp))
+                    fig.add_trace(go.Scatter(x=steps, y=re_vals, mode='lines+markers', name=f'|{state}⟩ Real', line=dict(width=2)))
+                    fig.add_trace(go.Scatter(x=steps, y=im_vals, mode='lines+markers', name=f'|{state}⟩ Imag', line=dict(dash='dash', width=2)))
+                    
+                fig.update_layout(title="Complex Amplitude Split Trajectories (Top 3 States)", xaxis_title="Circuit Step", yaxis_title="Amplitude Value", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Timeline data not available.")
+
+        with tabs3[8]: # 29. 3D PROBABILITY SURFACE
+            st.subheader("3D Probability Surface Landscape")
+            if result.get('timeline'):
+                steps = [t['step'] for t in result['timeline']]
+                n_states = min(2**num_qubits, 32) # Cap at 32 states for rendering performance
+                z_data = np.zeros((n_states, len(steps)))
+                state_labels = [format(i, f"0{num_qubits}b") for i in range(n_states)]
+                
+                for c, t in enumerate(result['timeline']):
+                    sv = np.asarray(t['statevector'])
+                    probs = np.abs(sv[:n_states])**2
+                    z_data[:, c] = probs
+                    
+                fig = go.Figure(data=[go.Surface(z=z_data, x=steps, y=state_labels, colorscale='Plasma', opacity=0.9)])
+                fig.update_layout(title="Spatiotemporal Probability Landscape", scene=dict(xaxis_title='Step', yaxis_title='Basis State', zaxis_title='Probability', camera=dict(eye=dict(x=-1.5, y=-1.5, z=1.2))), margin=dict(l=0, r=0, t=40, b=0), height=550, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Timeline data not available.")
+
+        with tabs3[9]: # 30. 3D PHASE TRAJECTORY
+            st.subheader("3D Phase Trajectory (Time vs Re vs Im)")
+            if result.get('timeline'):
+                fig = go.Figure()
+                steps = [t['step'] for t in result['timeline']]
+                top_states = sorted(result['probabilities'].items(), key=lambda x: x[1], reverse=True)[:3]
+                
+                for state, _ in top_states:
+                    state_idx = int(state, 2)
+                    re_vals, im_vals = [], []
+                    for t in result['timeline']:
+                        sv = np.asarray(t['statevector'])
+                        amp = sv[state_idx] if state_idx < len(sv) else 0
+                        re_vals.append(np.real(amp))
+                        im_vals.append(np.imag(amp))
+                    fig.add_trace(go.Scatter3d(x=steps, y=re_vals, z=im_vals, mode='lines+markers', line=dict(width=4), marker=dict(size=4), name=f"|{state}⟩"))
+                    
+                fig.update_layout(scene=dict(xaxis_title="Circuit Step", yaxis_title="Real Part", zaxis_title="Imag Part"), height=450, margin=dict(l=0, r=0, b=0, t=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Timeline data not available.")
 
     else:
         st.info("Run simulation to see visualizations")
