@@ -631,7 +631,27 @@ PRESET_CATEGORIES = {
     "Hardware & Optimization": ["IBM Native Basis Demo", "IonQ Native Gates Demo", "Superconducting Qubit Demo", "Circuit Depth Reduction", "Gate Cancellation Demo", "Optimized QFT", "Hardware Mapping Demo"],
     "Physics & Chemistry": ["Ising Model Simulation", "Heisenberg Spin Chain", "Quantum Harmonic Oscillator", "Molecular Hamiltonian Demo", "Hydrogen Molecule VQE", "Quantum Tunneling Demo", "Spin Interaction Demo"],
     "Educational": ["Bloch Sphere Rotation Demo", "Basis Change Demo", "Measurement Collapse Demo", "Phase Visualization Demo", "Controlled Gate Demo", "Toffoli Gate Demo", "Quantum vs Classical Demo", "Tensor Product Demo"],
-    "Advanced Research": ["Quantum Walk", "Quantum Annealing", "Adiabatic Evolution", "Quantum Chaos Demo", "Tensor Network Demo", "Quantum Volume Benchmark", "Randomized Benchmarking", "Quantum Supremacy Sampling"]
+    "Advanced Research": ["Quantum Walk", "Quantum Annealing", "Adiabatic Evolution", "Quantum Chaos Demo", "Tensor Network Demo", "Quantum Volume Benchmark", "Randomized Benchmarking", "Quantum Supremacy Sampling"],
+    "Fun & Visual": ["Quantum Dice", "Schrödinger Cat Demo", "Quantum Maze Solver", "Quantum Music Generator", "Quantum Game Theory Demo", "Quantum Sudoku Solver", "Quantum Fractal Generator", "Quantum Particle Simulator"]
+}
+
+PRESET_METADATA = {
+    "Quantum Walk": {"equation": "|ψ(t)⟩ = U^t |ψ(0)⟩", "description": "Discrete-time quantum walk showing probability spreading faster than classical random walks."},
+    "Quantum Annealing": {"equation": "H(t) = (1-s(t))H₀ + s(t)H₁", "description": "Adiabatic optimization process evolving ground state toward solution."},
+    "Adiabatic Evolution": {"equation": "iħ ∂|ψ⟩/∂t = H(t)|ψ⟩", "description": "Quantum state remains in instantaneous ground state during evolution."},
+    "Quantum Chaos Demo": {"equation": "U = e^{-iHT}", "description": "Demonstrates sensitivity to initial quantum conditions."},
+    "Tensor Network Demo": {"equation": "|ψ⟩ = Σ A₁A₂...Aₙ |i₁i₂...iₙ⟩", "description": "Visualizes tensor contractions and compressed quantum states."},
+    "Quantum Volume Benchmark": {"equation": "QV = 2^n", "description": "Measures effective capability of a quantum computer."},
+    "Randomized Benchmarking": {"equation": "F(m)=A p^m + B", "description": "Estimates average gate fidelity and hardware noise."},
+    "Quantum Supremacy Sampling": {"equation": "P(x)=|⟨x|U|0⟩|²", "description": "Demonstrates sampling beyond classical tractability."},
+    "Quantum Dice": {"equation": "P(n)=1/2^n", "description": "Quantum random dice simulator."},
+    "Schrödinger Cat Demo": {"equation": "(|alive⟩ + |dead⟩)/√2", "description": "Visual representation of quantum superposition paradox."},
+    "Quantum Maze Solver": {"equation": "Amplitude amplification search", "description": "Uses Grover-like search to solve maze paths."},
+    "Quantum Music Generator": {"equation": "|ψ⟩ → musical mapping", "description": "Maps quantum amplitudes to musical tones."},
+    "Quantum Game Theory Demo": {"equation": "U_A ⊗ U_B |ψ⟩", "description": "Demonstrates quantum Nash equilibria."},
+    "Quantum Sudoku Solver": {"equation": "Constraint satisfaction via Grover search", "description": "Quantum-enhanced Sudoku constraint solving."},
+    "Quantum Fractal Generator": {"equation": "Iterative phase recursion", "description": "Creates fractal-like interference structures."},
+    "Quantum Particle Simulator": {"equation": "iħ ∂|ψ⟩/∂t = H|ψ⟩", "description": "Simulates quantum particle wavefunction evolution."}
 }
 
 def generate_preset_circuit(name: str, nq: int) -> tuple[List[Gate], int]:
@@ -653,7 +673,7 @@ def generate_preset_circuit(name: str, nq: int) -> tuple[List[Gate], int]:
         nq = max(nq, 2)
         add('h', 0); add('cx', 1, c=0)
         if "noisy" in nl: add('id', 0)
-    elif "ghz" in nl or "cat" in nl:
+    elif "ghz" in nl or "cat" in nl or "schrödinger" in nl or "schrodinger" in nl:
         nq = max(nq, 3)
         add('h', 0)
         for i in range(nq-1): add('cx', i+1, c=i)
@@ -681,7 +701,7 @@ def generate_preset_circuit(name: str, nq: int) -> tuple[List[Gate], int]:
         for i in range(nq): add('h', i)
         for i in range(nq-1): add('cx', nq-1, c=i)
         for i in range(nq-1): add('h', i)
-    elif "grover" in nl or "search" in nl or "amplification" in nl:
+    elif "grover" in nl or "search" in nl or "amplification" in nl or "maze" in nl or "sudoku" in nl:
         nq = max(nq, 2)
         for i in range(nq): add('h', i)
         add('cz', 1, c=0)
@@ -709,7 +729,7 @@ def generate_preset_circuit(name: str, nq: int) -> tuple[List[Gate], int]:
         nq = max(nq, 2)
         add('x', 0); add('h', 0)
         add('h', 0); add('measure', 0)
-    elif "ising" in nl or "heisenberg" in nl or "spin" in nl or "chemistry" in nl or "molecule" in nl or "hamiltonian" in nl:
+    elif "ising" in nl or "heisenberg" in nl or "spin" in nl or "chemistry" in nl or "molecule" in nl or "hamiltonian" in nl or "annealing" in nl or "adiabatic" in nl or "particle" in nl:
         nq = max(nq, 3)
         for i in range(nq): add('h', i)
         for i in range(nq-1): add('rzz', i+1, c=i, p=0.8)
@@ -719,6 +739,22 @@ def generate_preset_circuit(name: str, nq: int) -> tuple[List[Gate], int]:
         for _ in range(2):
             for i in range(nq): add('u', i, p=random.uniform(0, 6.28), p2=random.uniform(0,3.14))
             for i in range(nq-1): add('cx', i+1, c=i)
+    elif "dice" in nl:
+        nq = max(nq, 3)
+        for i in range(nq): add('h', i)
+        for i in range(nq): add('measure', i)
+    elif "music" in nl or "fractal" in nl or "tensor" in nl:
+        nq = max(nq, 3)
+        for i in range(nq): add('h', i)
+        for i in range(nq): add('p', i, p=random.uniform(0.5, 2.5))
+        for i in range(nq-1): add('cx', i+1, c=i)
+        for i in range(nq): add('rx', i, p=random.uniform(0.5, 2.5))
+        for i in range(nq-1): add('cz', i+1, c=i)
+    elif "game" in nl:
+        nq = max(nq, 2)
+        add('h', 0); add('cx', 1, c=0)
+        add('ry', 0, p=1.57); add('ry', 1, p=0.78)
+        add('cx', 1, c=0); add('h', 0)
     elif "superposition" in nl or "coin" in nl:
         add('h', 0)
         if "coin" in nl or "generator" in nl: add('measure', 0)
@@ -745,6 +781,58 @@ def generate_preset_circuit(name: str, nq: int) -> tuple[List[Gate], int]:
         for i in range(nq): add('h', i)
 
     return gates, nq
+
+# ============================================================================
+# JSON Parser Engine
+# ============================================================================
+
+def parse_imported_json(json_data: str) -> tuple[bool, Any, int, dict]:
+    """Parses standard circuit JSON and safely maps it to internal Gate objects."""
+    try:
+        data = json.loads(json_data)
+        num_qubits = data.get("qubits", data.get("classical_bits", 2))
+        gates_data = data.get("gates", [])
+        settings = data.get("settings", {})
+
+        new_gates = []
+        for idx, g in enumerate(gates_data):
+            g_type = g.get("type", "").lower()
+            target = g.get("target", [0])
+            control = g.get("control", [])
+            params = g.get("params", {})
+            step = g.get("step", idx)
+
+            # Look up standard label and description mapping
+            label = g_type.upper()
+            desc = "Imported gate"
+            for cat in GATE_DEFINITIONS.values():
+                for def_g in cat:
+                    if def_g["name"] == g_type:
+                        label = def_g["label"]
+                        desc = def_g["description"]
+                        break
+
+            ctrl1 = control[0] if len(control) > 0 else None
+            ctrl2 = control[1] if len(control) > 1 else None
+
+            # Flexible params mapping (handles dicts or arrays)
+            param_vals = list(params.values()) if isinstance(params, dict) else (params if isinstance(params, list) else [])
+            p1 = float(param_vals[0]) if len(param_vals) > 0 and param_vals[0] is not None else None
+            p2 = float(param_vals[1]) if len(param_vals) > 1 and param_vals[1] is not None else None
+            p3 = float(param_vals[2]) if len(param_vals) > 2 and param_vals[2] is not None else None
+
+            new_gate = Gate(
+                name=g_type, label=label,
+                qubit=target[0] if len(target) > 0 else 0,
+                position=step, control=ctrl1, control2=ctrl2,
+                param=p1, param2=p2, param3=p3,
+                description=desc, id=g.get("id", str(time.time() + idx))
+            )
+            new_gates.append(new_gate)
+
+        return True, new_gates, num_qubits, settings
+    except Exception as e:
+        return False, str(e), 2, {}
 
 # ============================================================================
 # Streamlit UI
@@ -1179,6 +1267,16 @@ def main():
         preset_cat = st.selectbox("Category", list(PRESET_CATEGORIES.keys()))
         preset_name = st.selectbox("Preset Circuit", PRESET_CATEGORIES[preset_cat])
         
+        # Display preset metadata if available
+        if preset_name in PRESET_METADATA:
+            meta = PRESET_METADATA[preset_name]
+            st.markdown(f"""
+            <div style='background-color: rgba(14, 165, 233, 0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid rgba(14, 165, 233, 0.2);'>
+                <p style='margin-bottom: 0.5rem; color: #e2e8f0; font-size: 0.95rem;'><b>💡 Insight:</b> {meta['description']}</p>
+                <code style='color: #38bdf8; background-color: rgba(15, 23, 42, 0.5); padding: 0.2rem 0.5rem; border-radius: 4px; border: none;'>{meta['equation']}</code>
+            </div>
+            """, unsafe_allow_html=True)
+
         if st.button("Load Preset", use_container_width=True):
             with st.spinner(f"Configuring {preset_name}..."):
                 new_gates, req_nq = generate_preset_circuit(preset_name, st.session_state.num_qubits)
@@ -1190,16 +1288,57 @@ def main():
                 time.sleep(0.3)
             st.rerun()
         
-        # Export
+        # Import / Export
         st.divider()
-        if st.session_state.simulation_result:
-            st.download_button(
-                label="📥 Export QASM",
-                data=st.session_state.simulation_result['qasm'],
-                file_name=f"circuit_{int(time.time())}.qasm",
-                mime="text/plain",
-                use_container_width=True
-            )
+        st.subheader("📂 Import & Export")
+        
+        ie_tabs = st.tabs(["Import JSON", "Export JSON", "Export QASM"])
+        
+        with ie_tabs[0]:
+            uploaded_file = st.file_uploader("Upload JSON File", type=["json"])
+            json_text = st.text_area("Or Paste JSON", height=150, placeholder='{"qubits": 2, "gates": [...]}')
+            
+            if st.button("📥 Import Circuit", use_container_width=True):
+                data_to_parse = None
+                if uploaded_file is not None:
+                    data_to_parse = uploaded_file.getvalue().decode("utf-8")
+                elif json_text.strip():
+                    data_to_parse = json_text
+                    
+                if data_to_parse:
+                    success, result_data, num_q, settings = parse_imported_json(data_to_parse)
+                    if success:
+                        st.session_state.gates = result_data
+                        st.session_state.num_qubits = num_q
+                        st.session_state.simulation_result = None
+                        st.toast("Circuit imported successfully! Visualizations will update.", icon="✅")
+                        time.sleep(0.3)
+                        st.rerun()
+                    else:
+                        st.error(f"Invalid JSON format: {result_data}")
+                else:
+                    st.warning("Please upload a file or paste JSON data.")
+                    
+        with ie_tabs[1]:
+            export_data = {"name": "Quantum Circuit", "description": "Exported from Quantum Circuit Designer", "qubits": st.session_state.num_qubits, "settings": {"shots": shots, "noise_model": noise_model}, "gates": []}
+            for g in st.session_state.gates:
+                gate_data = {"id": g.id, "type": g.name, "target": [g.qubit], "step": g.position}
+                controls = [c for c in [g.control, g.control2] if c is not None]
+                if controls: gate_data["control"] = controls
+                params = {}
+                if g.param is not None: params["p1"] = g.param
+                if g.param2 is not None: params["p2"] = g.param2
+                if g.param3 is not None: params["p3"] = g.param3
+                gate_data["params"] = params
+                export_data["gates"].append(gate_data)
+                
+            st.download_button(label="💾 Download JSON", data=json.dumps(export_data, indent=2), file_name=f"circuit_{int(time.time())}.json", mime="application/json", use_container_width=True)
+            
+        with ie_tabs[2]:
+            if st.session_state.simulation_result:
+                st.download_button(label="📄 Download QASM", data=st.session_state.simulation_result['qasm'], file_name=f"circuit_{int(time.time())}.qasm", mime="text/plain", use_container_width=True)
+            else:
+                st.info("Run simulation first to generate QASM data.")
     
     # Main content area
     st.header("Circuit Builder")
